@@ -121,14 +121,14 @@ function handleInputChange(e) {
   }
 }
 // --- 4. 描画と進行管理 ---
-unction loadWords() {
-  // 本来は外部JSONから取得。動作確認用にセット
+
+function loadWords() {
+  // 動作確認用のセット
   state.wordData = {
     categories: [
       { id: 'basic', words: ['apple', 'banana', 'orange', 'grape', 'lemon'] }
     ]
   };
-  // 最初の単語をセット
   const category = state.wordData.categories.find(c => c.id === state.selectedCategory);
   if (category) loadRandomWord(category.words);
 }
@@ -153,7 +153,6 @@ function updateScoreDisplay() {
   if (elements.correctValue) elements.correctValue.textContent = state.score.correct;
   if (elements.mistakesValue) elements.mistakesValue.textContent = state.score.mistakes;
   
-  // 精度計算を追加
   const total = scoreState.totalTyped || 0;
   const accuracy = total === 0 ? 0 : ((state.score.correct / total) * 100).toFixed(1);
   if (elements.accuracyValue) elements.accuracyValue.textContent = accuracy + '%';
@@ -161,11 +160,7 @@ function updateScoreDisplay() {
 
 function nextWord() {
   const category = state.wordData.categories.find(c => c.id === state.selectedCategory);
-  state.currentWord = category.words[Math.floor(Math.random() * category.words.length)];
-  state.inputValue = '';
-  state.currentIndex = 0;
-  elements.typingInput.value = '';
-  renderWordDisplay();
+  if (category) loadRandomWord(category.words);
 }
 
 async function finishGame() {
@@ -178,7 +173,7 @@ async function finishGame() {
     console.error("Score send failed", e);
   }
 }
-// タイマー更新関数（setIntervalから呼ばれる）
+
 function updateTimer() {
   const diff = Math.floor((Date.now() - state.uiStartTime) / 1000);
   const mins = Math.floor(diff / 60);
@@ -186,24 +181,8 @@ function updateTimer() {
   elements.timeValue.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// 音を鳴らすなどの補助関数
-function playErrorSound() { if (state.soundEnabled) console.log("Beep!"); }
-function toggleBGM(enabled) { console.log("BGM:", enabled); }
+// --- 5. 初期化とイベント起動 ---
 
-// 最後に実行される初期化
-async function initialize() {
-  try {
-    loadWords();
-    renderKeyboard(); // keyboard.js が正しく読み込まれていれば実行される
-    updateScoreDisplay();
-  } catch (e) {
-    console.error("Initialization failed:", e);
-  }
-}
-
-// 実行
-initialize();
-// --- 5. 初期化と起動 ---
 async function handleStart() {
   try {
     await requestStartSession(state.selectedCategory);
@@ -212,46 +191,33 @@ async function handleStart() {
     elements.typingInput.disabled = false;
     elements.typingInput.focus();
     
-    state.timerInterval = setInterval(() => {
-      const sec = Math.floor((Date.now() - state.uiStartTime) / 1000);
-      elements.timeValue.textContent = `${Math.floor(sec/60)}:${(sec%60).toString().padStart(2,'0')}`;
-    }, 1000);
-
+    state.timerInterval = setInterval(updateTimer, 1000);
     nextWord();
   } catch (e) {
+    console.error(e);
     alert("通信エラー：GAEが起動しているか確認してください。");
   }
 }
 
 function initialize() {
-  // データの準備
-  state.wordData = { categories: [{ id: 'basic', words: ['apple', 'orange', 'banana'] }] };
-  
   // イベント登録
   elements.startBtn.addEventListener('click', handleStart);
   elements.typingInput.addEventListener('input', handleInputChange);
-  if (elements.loginBtn) elements.loginBtn.addEventListener('click', login); // firebase-auth.js
-  if (elements.logoutBtn) elements.logoutBtn.addEventListener('click', logout);
   
-  renderWordDisplay();
-
-  } catch (e) {
-    alert("ログイン状態を確認するか、GAEの起動を待ってください。");
+  // firebase-auth.js の関数が存在する場合のみ登録
+  if (elements.loginBtn && typeof login === 'function') {
+    elements.loginBtn.addEventListener('click', login);
   }
-}
+  if (elements.logoutBtn && typeof logout === 'function') {
+    elements.logoutBtn.addEventListener('click', logout);
+  }
 
-function initialize() {
-  // イベント登録
-  elements.startBtn.addEventListener('click', handleStart);
-  elements.typingInput.addEventListener('input', handleInputChange);
-  if (elements.loginBtn) elements.loginBtn.addEventListener('click', login);
-  if (elements.logoutBtn) elements.logoutBtn.addEventListener('click', logout);
-
-  // 起動時の描画（ここが重要！）
+  // 初回描画
   try {
     loadWords();
+    // keyboard.js の関数を安全に呼び出す
     if (typeof renderKeyboard === 'function') {
-      renderKeyboard(); // これでキーボードが復活します
+      renderKeyboard();
     }
     updateScoreDisplay();
   } catch (e) {
