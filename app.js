@@ -10,7 +10,8 @@ const state = {
   score: { correct: 0, mistakes: 0 },
   uiStartTime: null,
   isStarted: false,
-  timerInterval: null
+  timerInterval: null,
+  pressedKey: '',
 };
 
 const appState = {
