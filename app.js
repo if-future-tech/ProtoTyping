@@ -121,7 +121,28 @@ function handleInputChange(e) {
   }
 }
 // --- 4. 描画と進行管理 ---
+unction loadWords() {
+  // 本来は外部JSONから取得。動作確認用にセット
+  state.wordData = {
+    categories: [
+      { id: 'basic', words: ['apple', 'banana', 'orange', 'grape', 'lemon'] }
+    ]
+  };
+  // 最初の単語をセット
+  const category = state.wordData.categories.find(c => c.id === state.selectedCategory);
+  if (category) loadRandomWord(category.words);
+}
+
+function loadRandomWord(words) {
+  state.currentWord = words[Math.floor(Math.random() * words.length)];
+  state.currentIndex = 0;
+  state.inputValue = '';
+  elements.typingInput.value = '';
+  renderWordDisplay();
+}
+
 function renderWordDisplay() {
+  if (!elements.wordDisplay) return;
   elements.wordDisplay.innerHTML = state.currentWord.split('').map((char, i) => {
     let className = i < state.currentIndex ? 'correct' : '';
     return `<span class="${className}">${char}</span>`;
@@ -129,8 +150,13 @@ function renderWordDisplay() {
 }
 
 function updateScoreDisplay() {
-  elements.correctValue.textContent = state.score.correct;
-  elements.mistakesValue.textContent = state.score.mistakes;
+  if (elements.correctValue) elements.correctValue.textContent = state.score.correct;
+  if (elements.mistakesValue) elements.mistakesValue.textContent = state.score.mistakes;
+  
+  // 精度計算を追加
+  const total = scoreState.totalTyped || 0;
+  const accuracy = total === 0 ? 0 : ((state.score.correct / total) * 100).toFixed(1);
+  if (elements.accuracyValue) elements.accuracyValue.textContent = accuracy + '%';
 }
 
 function nextWord() {
@@ -152,6 +178,31 @@ async function finishGame() {
     console.error("Score send failed", e);
   }
 }
+// タイマー更新関数（setIntervalから呼ばれる）
+function updateTimer() {
+  const diff = Math.floor((Date.now() - state.uiStartTime) / 1000);
+  const mins = Math.floor(diff / 60);
+  const secs = diff % 60;
+  elements.timeValue.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// 音を鳴らすなどの補助関数
+function playErrorSound() { if (state.soundEnabled) console.log("Beep!"); }
+function toggleBGM(enabled) { console.log("BGM:", enabled); }
+
+// 最後に実行される初期化
+async function initialize() {
+  try {
+    loadWords();
+    renderKeyboard(); // keyboard.js が正しく読み込まれていれば実行される
+    updateScoreDisplay();
+  } catch (e) {
+    console.error("Initialization failed:", e);
+  }
+}
+
+// 実行
+initialize();
 // --- 5. 初期化と起動 ---
 async function handleStart() {
   try {
@@ -183,6 +234,29 @@ function initialize() {
   if (elements.logoutBtn) elements.logoutBtn.addEventListener('click', logout);
   
   renderWordDisplay();
+
+  } catch (e) {
+    alert("ログイン状態を確認するか、GAEの起動を待ってください。");
+  }
+}
+
+function initialize() {
+  // イベント登録
+  elements.startBtn.addEventListener('click', handleStart);
+  elements.typingInput.addEventListener('input', handleInputChange);
+  if (elements.loginBtn) elements.loginBtn.addEventListener('click', login);
+  if (elements.logoutBtn) elements.logoutBtn.addEventListener('click', logout);
+
+  // 起動時の描画（ここが重要！）
+  try {
+    loadWords();
+    if (typeof renderKeyboard === 'function') {
+      renderKeyboard(); // これでキーボードが復活します
+    }
+    updateScoreDisplay();
+  } catch (e) {
+    console.error("初期描画エラー:", e);
+  }
 }
 
 // 起動
