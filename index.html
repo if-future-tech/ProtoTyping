@@ -2,13 +2,152 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Project README</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>タイピング練習 - GitHub Pages</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>README</h1>
-  <p>ご閲覧ありがとうございます、このページはGitHub Pages公開確認用です。</p>
-  <p>詳しくは<a href="https://github.com/if-future-tech/ProtoTyping/blob/main/README.md">README</a>を御覧ください。</p>
+  <div class="app">
+    <!-- Seasonal Effect Canvas -->
+    <canvas id="seasonalCanvas" class="seasonal-canvas"></canvas>
 
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+      <div class="title-area" style="display: flex; align-items: center; gap: 15px;">
+      <h1 class="title">タイピング練習</h1>
 
+      <div id="authStatus" class="auth-status" style="font-size: 0.9rem; color: #666;">
+        <span id="loginPrompt">ようこそ <button id="loginBtn"  class="category-select">おじぎ【ログイン】する🙇‍♂️</button></span>
+        <span id="userGreeting" style="display: none;">
+          <span id="userName"></span>さん、お元気ですか <button id="logoutBtn" class="category-select">バイバイ【ログアウト】する👋</button>
+        </span>
+      </div>
+    </div>
+        <div class="header-controls">
+          <!-- Category Select -->
+          <select id="categorySelect" class="category-select">
+            <option value="basic">基本単語</option>
+          </select>
+
+          <!-- Start Button -->
+          <button id="startBtn" class="btn btn-primary">スタート</button>
+
+          <!-- Sound Toggle -->
+          <button id="soundToggle" class="icon-btn" title="効果音ON/OFF">
+            <svg class="icon" id="soundIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+          </button>
+
+          <!-- BGM Toggle -->
+          <button id="bgmToggle" class="icon-btn" title="BGM ON/OFF">
+            <svg class="icon" id="bgmIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Score Board -->
+      <div class="score-board" id="scoreBoard">
+        <div class="stat-card stat-blue">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <div class="stat-content">
+            <p class="stat-label">経過時間</p>
+            <p class="stat-value" id="timeValue">0:00</p>
+          </div>
+        </div>
+
+        <div class="stat-card stat-green">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>
+          <div class="stat-content">
+            <p class="stat-label">正解数</p>
+            <p class="stat-value" id="correctValue">0</p>
+          </div>
+        </div>
+
+        <div class="stat-card stat-red">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <div class="stat-content">
+            <p class="stat-label">ミス数</p>
+            <p class="stat-value" id="mistakesValue">0</p>
+          </div>
+        </div>
+
+        <div class="stat-card stat-purple">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+            <polyline points="17 6 23 6 23 12"></polyline>
+          </svg>
+          <div class="stat-content">
+            <p class="stat-label">精度</p>
+            <p class="stat-value" id="accuracyValue">0.0%</p>
+          </div>
+        </div>
+
+        <div class="stat-card stat-indigo">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+            <polyline points="17 6 23 6 23 12"></polyline>
+          </svg>
+          <div class="stat-content">
+            <p class="stat-label">WPM</p>
+            <p class="stat-value" id="wpmValue">0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text Display Area -->
+      <div class="text-display-area">
+        <!-- Question Area with Telop Animation -->
+        <div class="question-area">
+          <p class="question-label">出題</p>
+          <div class="word-display" id="wordDisplay"></div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+          <p class="input-label">入力</p>
+          <div class="input-container">
+            <input 
+              type="text" 
+              id="typingInput" 
+              class="typing-input"
+              placeholder="ここに入力してください..."
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Keyboard -->
+      <div class="keyboard" id="keyboard"></div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>GitHub Pages対応 | ホームポジションを意識して練習しましょう</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
