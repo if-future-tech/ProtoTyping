@@ -1,5 +1,5 @@
-// --- 1. 定数・状態管理 ---
-const API_BASE_URL = 'https://typing-ec-wp.uw.r.appspot.com';
+// --- 1. 定数とアプリの状態管理 ---
+const API_BASE_URL = 'https://typing-ec-wp.uw.r.appspot.com'; //
 
 const state = {
   wordData: null,
@@ -9,16 +9,11 @@ const state = {
   currentIndex: 0,
   score: { correct: 0, mistakes: 0 },
   uiStartTime: null,
-  elapsedTime: 0,
-  soundEnabled: true,
-  bgmEnabled: false,
-  pressedKey: '',
   isStarted: false,
   timerInterval: null
 };
 
 const appState = {
-  status: 'idle',
   sessionId: null,
   startedAt: null
 };
@@ -33,26 +28,21 @@ const scoreState = {
 const elements = {
   categorySelect: document.getElementById('categorySelect'),
   startBtn: document.getElementById('startBtn'),
-  soundToggle: document.getElementById('soundToggle'),
-  bgmToggle: document.getElementById('bgmToggle'),
-  soundIcon: document.getElementById('soundIcon'),
   timeValue: document.getElementById('timeValue'),
   correctValue: document.getElementById('correctValue'),
   mistakesValue: document.getElementById('mistakesValue'),
-  accuracyValue: document.getElementById('accuracyValue'),
-  wpmValue: document.getElementById('wpmValue'),
   wordDisplay: document.getElementById('wordDisplay'),
   typingInput: document.getElementById('typingInput'),
   keyboard: document.getElementById('keyboard'),
   loginBtn: document.getElementById('loginBtn'),
   logoutBtn: document.getElementById('logoutBtn')
 };
-// --- 2. API 通信関数 ---
 
+// --- 2. API 通信関数 ---
 async function requestStartSession(categoryId) {
-  const token = await getIdToken(); // firebase-auth.js から取得
+  const token = await getIdToken(); // firebase-auth.js の関数を利用
   const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) headers['Authorization'] = `Bearer ${token}`; //
 
   const response = await fetch(`${API_BASE_URL}/api/session/start`, {
     method: 'POST',
@@ -60,10 +50,10 @@ async function requestStartSession(categoryId) {
     body: JSON.stringify({ category: categoryId })
   });
 
-  if (!response.ok) throw new Error('Failed to start session');
+  if (!response.ok) throw new Error('Session start failed');
   const json = await response.json();
-  appState.sessionId = json.data.sessionId;
-  appState.startedAt = json.data.startedAt;
+  appState.sessionId = json.data.sessionId; //
+  appState.startedAt = json.data.startedAt; //
 }
 
 async function sendScoreResult() {
@@ -81,45 +71,61 @@ async function sendScoreResult() {
       elapsedMs: Date.now() - new Date(appState.startedAt).getTime()
     })
   });
-
   const result = await response.json();
-  scoreState.wpm = result.data.wpm;
-  scoreState.accuracy = result.data.accuracy;
+  scoreState.wpm = result.data.wpm; //
+  scoreState.accuracy = result.data.accuracy; //
 }
-// --- 3. ゲームロジック ---
+// --- 3. 入力判定ロジック ---
+function handleInputChange(e) {
+  if (!appState.sessionId) {
+    alert('スタートボタンを押してください！');
+    e.target.value = '';
+    return;
+  }
 
-async function loadWords() {
-  // 本来はJSONから読み込みますが、まずは動作確認用にダミーデータをセット
-  state.wordData = {
-    categories: [
-      { id: 'basic', words: ['apple', 'banana', 'orange', 'grape', 'lemon'] }
-    ]
-  };
-}
+  const newValue = e.target.value;
+  
+  // 1文字追加された場合（入力時）
+  if (newValue.length > state.inputValue.length) {
+    const lastChar = newValue[newValue.length - 1];
+    const expectedChar = state.currentWord[state.currentIndex];
 
-function loadRandomWord(words) {
-  state.currentWord = words[Math.floor(Math.random() * words.length)];
-  state.inputValue = '';
-  state.currentIndex = 0;
-  elements.typingInput.value = '';
+    if (lastChar === expectedChar) {
+      // 正解
+      scoreState.totalTyped++;
+      state.score.correct++;
+      state.currentIndex++;
+      state.inputValue = newValue;
+    } else {
+      // ミス
+      scoreState.missCount++;
+      state.score.mistakes++;
+      e.target.value = state.inputValue; // 入力を戻す
+    }
+  } else {
+    // 削除（BackSpace）
+    state.inputValue = newValue;
+    state.currentIndex = newValue.length;
+  }
+
   renderWordDisplay();
-}
+  updateScoreDisplay();
 
+  // 単語を打ち切ったか確認
+  if (state.inputValue === state.currentWord) {
+    if (state.score.correct >= 10) {
+      finishGame();
+    } else {
+      setTimeout(nextWord, 200);
+    }
+  }
+}
+// --- 4. 描画と進行管理 ---
 function renderWordDisplay() {
   elements.wordDisplay.innerHTML = state.currentWord.split('').map((char, i) => {
-    let className = '';
-    if (i < state.currentIndex) className = 'correct';
+    let className = i < state.currentIndex ? 'correct' : '';
     return `<span class="${className}">${char}</span>`;
   }).join('');
-}
-
-function renderKeyboard() {
-  // キーボード描画ロジック（簡易版）
-  if (!elements.keyboard) return;
-  const keys = 'qwertyuiopasdfghjklzxcvbnm';
-  elements.keyboard.innerHTML = keys.split('').map(key => 
-    `<div class="key ${state.pressedKey === key ? 'active' : ''}">${key.toUpperCase()}</div>`
-  ).join('');
 }
 
 function updateScoreDisplay() {
@@ -127,56 +133,57 @@ function updateScoreDisplay() {
   elements.mistakesValue.textContent = state.score.mistakes;
 }
 
-function updateTimer() {
-  const diff = Math.floor((Date.now() - state.uiStartTime) / 1000);
-  const mins = Math.floor(diff / 60);
-  const secs = diff % 60;
-  elements.timeValue.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+function nextWord() {
+  const category = state.wordData.categories.find(c => c.id === state.selectedCategory);
+  state.currentWord = category.words[Math.floor(Math.random() * category.words.length)];
+  state.inputValue = '';
+  state.currentIndex = 0;
+  elements.typingInput.value = '';
+  renderWordDisplay();
 }
 
-function playErrorSound() {
-  if (!state.soundEnabled) return;
-  // Audio API 等で音を鳴らす処理（省略可）
+async function finishGame() {
+  clearInterval(state.timerInterval);
+  elements.typingInput.disabled = true;
+  try {
+    await sendScoreResult();
+    alert(`終了！ WPM: ${scoreState.wpm}, 精度: ${scoreState.accuracy}%`);
+  } catch (e) {
+    console.error("Score send failed", e);
+  }
 }
-// --- 4. イベントハンドラ・初期化 ---
-
+// --- 5. 初期化と起動 ---
 async function handleStart() {
   try {
     await requestStartSession(state.selectedCategory);
-    appState.status = 'running';
-    elements.typingInput.disabled = false;
+    state.isStarted = true;
     state.uiStartTime = Date.now();
-    state.score = { correct: 0, mistakes: 0 };
-    scoreState.totalTyped = 0;
-    scoreState.missCount = 0;
-    
-    if (state.timerInterval) clearInterval(state.timerInterval);
-    state.timerInterval = setInterval(updateTimer, 1000);
-
-    const category = state.wordData.categories.find(c => c.id === state.selectedCategory);
-    if (category) loadRandomWord(category.words);
-    
-    updateScoreDisplay();
+    elements.typingInput.disabled = false;
     elements.typingInput.focus();
+    
+    state.timerInterval = setInterval(() => {
+      const sec = Math.floor((Date.now() - state.uiStartTime) / 1000);
+      elements.timeValue.textContent = `${Math.floor(sec/60)}:${(sec%60).toString().padStart(2,'0')}`;
+    }, 1000);
+
+    nextWord();
   } catch (e) {
-    alert("セッション開始失敗。GAEが動いているか確認してください。");
+    alert("通信エラー：GAEが起動しているか確認してください。");
   }
 }
 
 function initialize() {
-  // 全てのボタンにイベントを紐付け
+  // データの準備
+  state.wordData = { categories: [{ id: 'basic', words: ['apple', 'orange', 'banana'] }] };
+  
+  // イベント登録
   elements.startBtn.addEventListener('click', handleStart);
-  if (elements.loginBtn) elements.loginBtn.addEventListener('click', login);
+  elements.typingInput.addEventListener('input', handleInputChange);
+  if (elements.loginBtn) elements.loginBtn.addEventListener('click', login); // firebase-auth.js
   if (elements.logoutBtn) elements.logoutBtn.addEventListener('click', logout);
   
-  elements.typingInput.addEventListener('input', handleInputChange);
-  elements.typingInput.addEventListener('keydown', (e) => { state.pressedKey = e.key; renderKeyboard(); });
-  elements.typingInput.addEventListener('keyup', () => { state.pressedKey = ''; renderKeyboard(); });
-
-  loadWords();
-  renderKeyboard();
-  updateScoreDisplay();
+  renderWordDisplay();
 }
 
-// HTML読み込み完了時に実行
+// 起動
 window.addEventListener('DOMContentLoaded', initialize);
