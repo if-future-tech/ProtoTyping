@@ -78,6 +78,35 @@ async function sendScoreResult() {
 }
 // --- 3. 入力判定ロジック ---
 function handleInputChange(e) {
+  const val = e.target.value;
+  const lastChar = val.slice(-1); // 最後に打たれた文字を取得
+  
+  // 1. キーボード連動のために状態を更新
+  state.pressedKey = lastChar;
+  if (typeof renderKeyboard === 'function') renderKeyboard();
+
+  // 2. タイピング判定
+  const targetChar = state.currentWord[state.currentIndex];
+  if (lastChar === targetChar) {
+    state.currentIndex++;
+    state.score.correct++;
+    scoreState.totalTyped++;
+  } else {
+    state.score.mistakes++;
+    scoreState.missCount++;
+  }
+
+  // 3. 入力リセットと描画更新
+  e.target.value = ''; 
+  renderWordDisplay();
+  updateScoreDisplay();
+
+  // 終了判定（現在は10文字正解で終了）
+  if (state.score.correct >= 10) {
+    finishGame();
+  }
+}/*
+function handleInputChange(e) {
   if (!appState.sessionId) {
     alert('スタートボタンを押してください！');
     e.target.value = '';
@@ -120,7 +149,8 @@ function handleInputChange(e) {
       setTimeout(nextWord, 200);
     }
   }
-}
+}*/
+
 // --- 4. 描画と進行管理 ---
 
 function loadWords() {
@@ -199,7 +229,29 @@ async function handleStart() {
     alert("通信エラー：GAEが起動しているか確認してください。");
   }
 }
-
+function initialize() {
+  // データの準備
+  state.wordData = { categories: [{ id: 'basic', words: ['apple', 'orange', 'banana', 'grape', 'lemon'] }] };
+  
+  // イベント登録
+  elements.startBtn.addEventListener('click', handleStart);
+  elements.typingInput.addEventListener('input', handleInputChange);
+  
+  // Firebase ログインボタン等の紐付け
+  if (elements.loginBtn && typeof login === 'function') {
+    elements.loginBtn.addEventListener('click', login);
+  }
+  if (elements.logoutBtn && typeof logout === 'function') {
+    elements.logoutBtn.addEventListener('click', logout);
+  }
+  
+  // 初回描画
+  renderWordDisplay();
+  if (typeof renderKeyboard === 'function') {
+    renderKeyboard(); // 起動時にキーボードを表示
+  }
+  updateScoreDisplay();
+}/*
 function initialize() {
   // イベント登録
   elements.startBtn.addEventListener('click', handleStart);
@@ -224,7 +276,7 @@ function initialize() {
   } catch (e) {
     console.error("初期描画エラー:", e);
   }
-}
+}*/
 
 // 起動
 window.addEventListener('DOMContentLoaded', initialize);
