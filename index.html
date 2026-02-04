@@ -26,9 +26,13 @@
     </div>
         <div class="header-controls">
           <!-- Category Select -->
-          <select id="categorySelect" class="category-select">
-            <option value="basic">基本単語</option>
-          </select>
+          <div class="control-group">
+            <label for="categorySelect">ジャンル</label>
+            <select id="categorySelect">
+              <!-- app.js の loadWords() によって動的に生成されます -->
+              <option>読み込み中...</option>
+            </select>
+          </div>
 
           <!-- Start Button -->
           <button id="startBtn" class="btn btn-primary">スタート</button>
