@@ -58,18 +58,21 @@ const elements = {
 
 /**
  * 認証状態に基づいたUIの更新
- * ログイン・ログアウトボタンの表示/非表示を確実に切り替える
+ * isLoggedIn が true ならログアウトを表示、false ならログインを表示
  */
 function updateAuthUI(isLoggedIn) {
-  console.log("updateAuthUI called. isLoggedIn:", isLoggedIn);
-  if (elements.loginBtn && elements.logoutBtn) {
-    if (isLoggedIn) {
-      elements.loginBtn.style.display = 'none';
-      elements.logoutBtn.style.display = 'inline-block';
-    } else {
-      elements.loginBtn.style.display = 'inline-block';
-      elements.logoutBtn.style.display = 'none';
-    }
+  console.log("updateAuthUI forced update. Status:", isLoggedIn ? "Logged In" : "Logged Out");
+  
+  if (!elements.loginBtn || !elements.logoutBtn) return;
+
+  if (isLoggedIn) {
+    // ログイン済み：ログインボタンを隠し、ログアウトボタンを出す
+    elements.loginBtn.style.setProperty('display', 'none', 'important');
+    elements.logoutBtn.style.setProperty('display', 'inline-block', 'important');
+  } else {
+    // 未ログイン：ログインボタンを出し、ログアウトボタンを隠す
+    elements.loginBtn.style.setProperty('display', 'inline-block', 'important');
+    elements.logoutBtn.style.setProperty('display', 'none', 'important');
   }
 }
 
@@ -108,7 +111,6 @@ function renderCountdown(count) {
   if (!elements.wordDisplay) return;
   
   let bgColor = "#f3f4f6";
-  
   if (count === 3) bgColor = "#ef4444"; 
   if (count === 2) bgColor = "#eab308"; 
   if (count === 1) bgColor = "#22c55e"; 
@@ -145,7 +147,6 @@ function loadNextWord() {
   
   elements.wordDisplay.style.backgroundColor = "transparent";
   elements.wordDisplay.style.color = "inherit";
-
   elements.wordDisplay.classList.add('animate');
   setTimeout(() => elements.wordDisplay.classList.remove('animate'), 600);
 
@@ -160,7 +161,6 @@ function renderWordDisplay() {
   if (!elements.wordDisplay || state.isCountingDown) return; 
 
   elements.wordDisplay.innerHTML = '';
-  
   if (!state.currentWord) {
     elements.wordDisplay.innerHTML = '<span style="opacity: 0.5;">READY?</span>';
     return;
@@ -451,30 +451,39 @@ async function initialize() {
     elements.soundToggle.classList.toggle('active', active);
   });
 
-  // 初期の認証状態チェック。Firebaseの初期化を待つために少し遅延させるか、
-  // getAuthToken内で待機するように調整。
-  setTimeout(async () => {
+  // ログインボタンのクリック
+  if (elements.loginBtn && typeof window.login === 'function') {
+    elements.loginBtn.addEventListener('click', async () => {
+        console.log("Login button clicked");
+        await window.login();
+        // ログイン完了後にトークンを再確認してUI更新
+        const token = await api.getAuthToken();
+        updateAuthUI(!!token);
+    });
+  }
+
+  // ログアウトボタンのクリック
+  if (elements.logoutBtn && typeof window.logout === 'function') {
+    elements.logoutBtn.addEventListener('click', async () => {
+        console.log("Logout button clicked");
+        await window.logout();
+        updateAuthUI(false);
+    });
+  }
+
+  // 初期の認証状態チェック
+  // Firebase Auth の初期化を確実に拾うためにインターバルで回すか、明示的に待つ
+  const checkInitialAuth = async () => {
       try {
         const token = await api.getAuthToken();
         updateAuthUI(!!token);
       } catch(e) {
         updateAuthUI(false);
       }
-  }, 1000);
+  };
 
-  if (elements.loginBtn && typeof window.login === 'function') {
-    elements.loginBtn.addEventListener('click', async () => {
-        await window.login();
-        const token = await api.getAuthToken();
-        updateAuthUI(!!token);
-    });
-  }
-  if (elements.logoutBtn && typeof window.logout === 'function') {
-    elements.logoutBtn.addEventListener('click', async () => {
-        await window.logout();
-        updateAuthUI(false);
-    });
-  }
+  // 100ms, 1000ms, 3000ms のタイミングで念押しチェック
+  [100, 1000, 3000].forEach(delay => setTimeout(checkInitialAuth, delay));
 
   await loadWords();
   if (window.initSeasonalEffect) window.initSeasonalEffect('seasonalCanvas');
