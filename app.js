@@ -230,7 +230,13 @@ async function finishGame() {
     return;
   }
 
+  // ログイン済みの場合の保存フロー
   elements.startBtn.textContent = "保存中...";
+  elements.wordDisplay.innerHTML = `
+    <div style="text-align: center; opacity: 0.7;">
+      <div style="font-size: 1rem;">スコアを送信しています...</div>
+    </div>
+  `;
 
   try {
     const elapsedMs = Date.now() - new Date(state.sessionStartedAt).getTime();
@@ -253,7 +259,12 @@ async function finishGame() {
   } catch (e) {
     console.error("Score submission error:", e);
     elements.startBtn.textContent = "再試行";
-    elements.wordDisplay.innerHTML = `<div style="color: #ef4444; font-weight: bold; padding: 10px;">エラー: 保存に失敗しました。</div>`;
+    elements.wordDisplay.innerHTML = `
+      <div style="text-align: center;">
+        <div style="color: #ef4444; font-weight: bold; margin-bottom: 5px;">保存に失敗しました</div>
+        <div style="font-size: 0.75rem; opacity: 0.6;">通信状況を確認してください</div>
+      </div>
+    `;
   }
 }
 
