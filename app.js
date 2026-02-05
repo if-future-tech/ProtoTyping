@@ -1,7 +1,7 @@
 /**
  * app.js
  * * メインロジック：タイピングの進行管理、UI制御（司令塔）
- * * 依存関係: APIManager, SoundManager, KeyboardManager が事前に読み込まれていること
+ * * 依存関係: APIManager, SoundManager, KeyboardManager, FirebaseAuth が事前に読み込まれていること
  */
 
 // --- 1. 設定と状態管理 ---
@@ -18,19 +18,18 @@ const state = {
   elapsedTime: 0,
   pressedKey: '',
   isStarted: false,
-  isCountingDown: false, // カウントダウン中フラグ
-  isWaitingRestart: false, // 終了後のリスタート待機フラグ
+  isCountingDown: false,
+  isWaitingRestart: false,
   timerInterval: null,
   
-  // セッション設定
   wordsPerSession: 10,
   completedWords: 0,
   
-  // API連携データ
   sessionId: null,
   sessionStartedAt: null,
   totalTyped: 0,
-  missCount: 0
+  missCount: 0,
+  isGuestMode: false // ゲスト（未ログイン）状態を追跡
 };
 
 // --- 2. マネージャーのインスタンス化 ---
@@ -87,23 +86,20 @@ async function loadWords() {
 
 /**
  * カウントダウン（色エフェクト）の描画
- * @param {number} count 3, 2, 1, 0 (0は開始)
  */
 function renderCountdown(count) {
   if (!elements.wordDisplay) return;
   
-  // 色の定義（Tailwindが効かない場合を考慮しInline Styleを使用）
-  let bgColor = "#f3f4f6"; // default gray
-  let textColor = "#1f2937";
+  let bgColor = "#f3f4f6";
   
-  if (count === 3) bgColor = "#ef4444"; // red
-  if (count === 2) bgColor = "#eab308"; // yellow
-  if (count === 1) bgColor = "#22c55e"; // green
-  if (count === 0) bgColor = "#3b82f6"; // blue/go
+  if (count === 3) bgColor = "#ef4444"; // 赤
+  if (count === 2) bgColor = "#eab308"; // 黄
+  if (count === 1) bgColor = "#22c55e"; // 緑
+  if (count === 0) bgColor = "#3b82f6"; // 青
 
-  if (count > 0 || count === 0) {
+  if (count >= 0) {
     elements.wordDisplay.style.backgroundColor = bgColor;
-    elements.wordDisplay.style.color = (count === 0) ? "#fff" : (count === 2 ? "#000" : "#fff");
+    elements.wordDisplay.style.color = (count === 2 ? "#000" : "#fff");
     elements.wordDisplay.style.borderRadius = "8px";
     elements.wordDisplay.style.transition = "all 0.2s ease";
     
@@ -130,7 +126,6 @@ function loadNextWord() {
   
   if (elements.typingInput) elements.typingInput.value = '';
   
-  // スタイルリセット
   elements.wordDisplay.style.backgroundColor = "transparent";
   elements.wordDisplay.style.color = "inherit";
 
@@ -145,9 +140,7 @@ function loadNextWord() {
  * 単語表示のレンダリング
  */
 function renderWordDisplay() {
-  if (!elements.wordDisplay) return;
-  
-  if (state.isCountingDown) return; 
+  if (!elements.wordDisplay || state.isCountingDown) return; 
 
   elements.wordDisplay.innerHTML = '';
   
@@ -186,8 +179,8 @@ function refreshKeyboard() {
  */
 function updateScoreDisplay(serverResult = null) {
   if (serverResult) {
-    if (elements.wpmValue) elements.wpmValue.textContent = serverResult.wpm;
-    if (elements.accuracyValue) elements.accuracyValue.textContent = serverResult.accuracy + '%';
+    if (elements.wpmValue) elements.wpmValue.textContent = serverResult.wpm || '0';
+    if (elements.accuracyValue) elements.accuracyValue.textContent = (serverResult.accuracy || '0.0') + '%';
     return;
   }
 
@@ -224,10 +217,24 @@ async function finishGame() {
   }
   
   elements.typingInput.disabled = true;
-  elements.startBtn.textContent = "送信中...";
+
+  // ログインしていない場合はローカル表示のみで終了
+  if (state.isGuestMode) {
+    elements.startBtn.textContent = "リプレイ";
+    elements.wordDisplay.innerHTML = `
+      <div class="finish-area" style="text-align: center;">
+        <div style="font-size: 1.25rem; margin-bottom: 0.5rem; font-weight: bold;">お疲れ様でした！</div>
+        <div style="font-size: 0.875rem; opacity: 0.7; color: #6b7280;">ログインするとスコアを記録できます</div>
+      </div>
+    `;
+    return;
+  }
+
+  elements.startBtn.textContent = "保存中...";
 
   try {
     const elapsedMs = Date.now() - new Date(state.sessionStartedAt).getTime();
+    
     const result = await api.submitScore({
       sessionId: state.sessionId,
       totalTyped: state.totalTyped,
@@ -246,6 +253,7 @@ async function finishGame() {
   } catch (e) {
     console.error("Score submission error:", e);
     elements.startBtn.textContent = "再試行";
+    elements.wordDisplay.innerHTML = `<div style="color: #ef4444; font-weight: bold; padding: 10px;">エラー: 保存に失敗しました。</div>`;
   }
 }
 
@@ -302,7 +310,7 @@ function handleInputChange(e) {
 }
 
 /**
- * ゲーム開始ハンドラ（カウントダウン含む）
+ * ゲーム開始ハンドラ
  */
 async function handleStart() {
   if (state.isStarted || state.isCountingDown) {
@@ -315,12 +323,21 @@ async function handleStart() {
     elements.startBtn.disabled = true;
     elements.startBtn.textContent = "...";
     
-    // APIセッション開始
-    const sessionData = await api.startSession(state.selectedCategory);
-    state.sessionId = sessionData.sessionId;
-    state.sessionStartedAt = sessionData.startedAt;
+    // ログイン状態を確認
+    const token = await api.getAuthToken();
+    if (token) {
+      // ログイン済み：サーバーと通信してセッション開始
+      state.isGuestMode = false;
+      const sessionData = await api.startSession(state.selectedCategory);
+      state.sessionId = sessionData.sessionId;
+      state.sessionStartedAt = sessionData.startedAt;
+    } else {
+      // 未ログイン：ゲストモードで続行
+      state.isGuestMode = true;
+      state.sessionId = null;
+      state.sessionStartedAt = new Date().toISOString();
+    }
     
-    // カウントダウン開始
     state.isCountingDown = true;
     elements.typingInput.disabled = true;
     
@@ -329,7 +346,6 @@ async function handleStart() {
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    // カウントダウン終了、本番開始
     state.isCountingDown = false;
     state.isStarted = true;
     state.startTime = Date.now();
@@ -353,8 +369,11 @@ async function handleStart() {
     elements.typingInput.focus();
 
   } catch (e) {
-    console.error(e);
-    alert("エラーが発生しました。");
+    console.error("Game start error:", e);
+    // サーバーエラー時も、せっかくなのでゲストモードとして遊べるようにする
+    state.isGuestMode = true;
+    state.isCountingDown = false;
+    state.isStarted = true;
   } finally {
     elements.startBtn.disabled = false;
     elements.startBtn.textContent = state.isStarted ? "中断" : "スタート";
@@ -401,8 +420,12 @@ async function initialize() {
     elements.soundToggle.classList.toggle('active', active);
   });
 
-  if (elements.loginBtn && window.login) elements.loginBtn.addEventListener('click', window.login);
-  if (elements.logoutBtn && window.logout) elements.logoutBtn.addEventListener('click', window.logout);
+  if (elements.loginBtn && typeof window.login === 'function') {
+    elements.loginBtn.addEventListener('click', window.login);
+  }
+  if (elements.logoutBtn && typeof window.logout === 'function') {
+    elements.logoutBtn.addEventListener('click', window.logout);
+  }
 
   await loadWords();
   if (window.initSeasonalEffect) window.initSeasonalEffect('seasonalCanvas');
