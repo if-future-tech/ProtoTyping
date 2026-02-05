@@ -86,23 +86,33 @@ async function loadWords() {
 }
 
 /**
- * カウントダウン（信号灯）の描画
+ * カウントダウン（色エフェクト）の描画
  * @param {number} count 3, 2, 1, 0 (0は開始)
  */
 function renderCountdown(count) {
   if (!elements.wordDisplay) return;
   
-  // 縦型信号灯のHTML構造
-  elements.wordDisplay.innerHTML = `
-    <div class="signal-container flex flex-col items-center gap-2 p-4 bg-gray-800 rounded-full border-4 border-gray-600 w-20 mx-auto">
-      <div class="w-12 h-12 rounded-full border-2 border-gray-900 ${count === 3 ? 'bg-red-500 shadow-[0_0_20px_#ef4444]' : 'bg-red-900'} transition-all duration-200"></div>
-      <div class="w-12 h-12 rounded-full border-2 border-gray-900 ${count === 2 ? 'bg-yellow-500 shadow-[0_0_20px_#eab308]' : 'bg-yellow-900'} transition-all duration-200"></div>
-      <div class="w-12 h-12 rounded-full border-2 border-gray-900 ${count === 1 ? 'bg-green-500 shadow-[0_0_20px_#22c55e]' : 'bg-green-900'} transition-all duration-200"></div>
-    </div>
-    <div class="text-4xl font-black mt-4 animate-pulse">
-      ${count > 0 ? count : 'GO!'}
-    </div>
-  `;
+  // 色の定義（Tailwindが効かない場合を考慮しInline Styleを使用）
+  let bgColor = "#f3f4f6"; // default gray
+  let textColor = "#1f2937";
+  
+  if (count === 3) bgColor = "#ef4444"; // red
+  if (count === 2) bgColor = "#eab308"; // yellow
+  if (count === 1) bgColor = "#22c55e"; // green
+  if (count === 0) bgColor = "#3b82f6"; // blue/go
+
+  if (count > 0 || count === 0) {
+    elements.wordDisplay.style.backgroundColor = bgColor;
+    elements.wordDisplay.style.color = (count === 0) ? "#fff" : (count === 2 ? "#000" : "#fff");
+    elements.wordDisplay.style.borderRadius = "8px";
+    elements.wordDisplay.style.transition = "all 0.2s ease";
+    
+    elements.wordDisplay.innerHTML = `
+      <div style="font-size: 5rem; font-weight: 900; padding: 20px;">
+        ${count > 0 ? count : 'GO!'}
+      </div>
+    `;
+  }
 }
 
 /**
@@ -120,6 +130,10 @@ function loadNextWord() {
   
   if (elements.typingInput) elements.typingInput.value = '';
   
+  // スタイルリセット
+  elements.wordDisplay.style.backgroundColor = "transparent";
+  elements.wordDisplay.style.color = "inherit";
+
   elements.wordDisplay.classList.add('animate');
   setTimeout(() => elements.wordDisplay.classList.remove('animate'), 600);
 
@@ -133,12 +147,12 @@ function loadNextWord() {
 function renderWordDisplay() {
   if (!elements.wordDisplay) return;
   
-  if (state.isCountingDown) return; // カウントダウン中は何もしない
+  if (state.isCountingDown) return; 
 
   elements.wordDisplay.innerHTML = '';
   
   if (!state.currentWord) {
-    elements.wordDisplay.innerHTML = '<span class="opacity-50">READY?</span>';
+    elements.wordDisplay.innerHTML = '<span style="opacity: 0.5;">READY?</span>';
     return;
   }
 
@@ -224,9 +238,9 @@ async function finishGame() {
     updateScoreDisplay(result);
     elements.startBtn.textContent = "リプレイ";
     elements.wordDisplay.innerHTML = `
-      <div class="finish-area text-center">
-        <div class="text-xl mb-2 font-bold">終了！スコアを保存しました</div>
-        <div class="text-sm opacity-70">[Space] または [Enter] でリプレイ</div>
+      <div class="finish-area" style="text-align: center;">
+        <div style="font-size: 1.25rem; margin-bottom: 0.5rem; font-weight: bold;">終了！スコアを保存しました</div>
+        <div style="font-size: 0.875rem; opacity: 0.7;">[Space] または [Enter] でリプレイ</div>
       </div>
     `;
   } catch (e) {
@@ -312,13 +326,6 @@ async function handleStart() {
     
     for (let i = 3; i >= 0; i--) {
       renderCountdown(i);
-      if (i > 0) {
-        // カウント音（もしあれば）
-        // sounds.playTick(); 
-      } else {
-        // 開始音（もしあれば）
-        // sounds.playGo();
-      }
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
