@@ -67,10 +67,16 @@ function updateAuthUI(isLoggedIn) {
 
   if (isLoggedIn) {
     // ログイン済み：ログインボタンを隠し、ログアウトボタンを出す
+    elements.loginBtn.style.display = 'none';
+    elements.logoutBtn.style.display = 'inline-block';
+    // 念押しで important を付与
     elements.loginBtn.style.setProperty('display', 'none', 'important');
     elements.logoutBtn.style.setProperty('display', 'inline-block', 'important');
   } else {
     // 未ログイン：ログインボタンを出し、ログアウトボタンを隠す
+    elements.loginBtn.style.display = 'inline-block';
+    elements.logoutBtn.style.display = 'none';
+    // 念押しで important を付与
     elements.loginBtn.style.setProperty('display', 'inline-block', 'important');
     elements.logoutBtn.style.setProperty('display', 'none', 'important');
   }
@@ -472,7 +478,6 @@ async function initialize() {
   }
 
   // 初期の認証状態チェック
-  // Firebase Auth の初期化を確実に拾うためにインターバルで回すか、明示的に待つ
   const checkInitialAuth = async () => {
       try {
         const token = await api.getAuthToken();
@@ -482,8 +487,8 @@ async function initialize() {
       }
   };
 
-  // 100ms, 1000ms, 3000ms のタイミングで念押しチェック
-  [100, 1000, 3000].forEach(delay => setTimeout(checkInitialAuth, delay));
+  // 複数回の遅延実行でFirebaseの初期化を確実に捉える
+  [0, 100, 500, 1000, 3000].forEach(delay => setTimeout(checkInitialAuth, delay));
 
   await loadWords();
   if (window.initSeasonalEffect) window.initSeasonalEffect('seasonalCanvas');
