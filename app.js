@@ -1,9 +1,10 @@
 /**
  * app.js
- * * メインロジック：タイピングの進行管理、UI制御
+ * * メインロジック：タイピングの進行管理、UI制御（司令塔）
+ * * 依存関係: APIManager, SoundManager, KeyboardManager が事前に読み込まれていること
  */
 
-// --- 1. 定数と状態管理 ---
+// --- 1. 設定と状態管理 ---
 const API_BASE_URL = 'https://typing-ec-wp.uw.r.appspot.com';
 
 const state = {
@@ -17,24 +18,26 @@ const state = {
   elapsedTime: 0,
   pressedKey: '',
   isStarted: false,
-  isWaitingRestart: false, // ゲーム終了後のリスタート待機状態
+  isWaitingRestart: false, // 終了後のリスタート待機フラグ
   timerInterval: null,
   
-  // ゲーム終了条件
+  // セッション設定
   wordsPerSession: 10,
   completedWords: 0,
   
-  // API連携用
+  // API連携データ
   sessionId: null,
   sessionStartedAt: null,
   totalTyped: 0,
   missCount: 0
 };
 
-// サウンド機能 (scripts/sounds.js等で定義されたSoundManagerを利用)
+// --- 2. マネージャーのインスタンス化 ---
+// 外部ファイル (api.js, sound.js) で定義されたクラスを利用
+const api = new APIManager(API_BASE_URL);
 const sounds = new SoundManager();
 
-// DOM Elements
+// DOM要素のキャッシュ
 const elements = {
   categorySelect: document.getElementById('categorySelect'),
   startBtn: document.getElementById('startBtn'),
@@ -52,60 +55,15 @@ const elements = {
   logoutBtn: document.getElementById('logoutBtn')
 };
 
-// --- 2. API 通信関数 ---
-async function getIdToken() {
-  if (window.auth && window.auth.currentUser) {
-    return window.auth.currentUser.getIdToken();
-  }
-  return null;
-}
+// --- 3. コアロジック関数 ---
 
-async function requestStartSession(categoryId) {
-  const token = await getIdToken();
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  const response = await fetch(`${API_BASE_URL}/api/session/start`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ category: categoryId })
-  });
-
-  if (!response.ok) throw new Error('Session start failed');
-  const json = await response.json();
-  
-  state.sessionId = json.data.sessionId;
-  state.sessionStartedAt = json.data.startedAt;
-}
-
-async function sendScoreResult() {
-  const token = await getIdToken();
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  const elapsedMs = Date.now() - new Date(state.sessionStartedAt).getTime();
-
-  const response = await fetch(`${API_BASE_URL}/api/score`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      sessionId: state.sessionId,
-      totalTyped: state.totalTyped,
-      missCount: state.missCount,
-      elapsedMs: elapsedMs
-    })
-  });
-
-  if (!response.ok) throw new Error('Score submission failed');
-  const result = await response.json();
-  return result.data;
-}
-
-// --- 3. ロジック関数 ---
-
+/**
+ * 単語リストの読み込み
+ */
 async function loadWords() {
   try {
     const response = await fetch('words.json');
+    if (!response.ok) throw new Error('Network response was not ok');
     const data = await response.json();
     state.wordData = data;
     
@@ -123,10 +81,14 @@ async function loadWords() {
     }
   } catch (error) {
     console.error('Failed to load words.json:', error);
-    state.wordData = { categories: [{ id: 'basic', words: ['error'] }] };
+    // フォールバックデータ
+    state.wordData = { categories: [{ id: 'basic', name: '基本', words: ['TYPING'] }] };
   }
 }
 
+/**
+ * 次の単語のセットアップ
+ */
 function loadNextWord() {
   if (!state.wordData) return;
   const category = state.wordData.categories.find(c => c.id === state.selectedCategory);
@@ -139,6 +101,7 @@ function loadNextWord() {
   
   if (elements.typingInput) elements.typingInput.value = '';
   
+  // 視覚演出
   elements.wordDisplay.classList.add('animate');
   setTimeout(() => elements.wordDisplay.classList.remove('animate'), 600);
 
@@ -146,8 +109,18 @@ function loadNextWord() {
   refreshKeyboard();
 }
 
+/**
+ * 単語表示のレンダリング
+ */
 function renderWordDisplay() {
+  if (!elements.wordDisplay) return;
   elements.wordDisplay.innerHTML = '';
+  
+  if (!state.currentWord) {
+    elements.wordDisplay.innerHTML = '<span class="opacity-50">READY?</span>';
+    return;
+  }
+
   state.currentWord.split('').forEach((char, idx) => {
     const span = document.createElement('span');
     span.textContent = char === ' ' ? '␣' : char;
@@ -163,17 +136,28 @@ function renderWordDisplay() {
   });
 }
 
+/**
+ * キーボード表示の更新
+ */
 function refreshKeyboard() {
-  if (window.KeyboardManager) {
-    window.KeyboardManager.render(
+  // window.KeyboardManager または KeyboardManager が存在するか確認
+  const km = window.KeyboardManager || (typeof KeyboardManager !== 'undefined' ? KeyboardManager : null);
+  
+  if (km) {
+    km.render(
       'keyboard', 
       state.pressedKey, 
       state.currentWord, 
       state.currentIndex
     );
+  } else {
+    console.warn('KeyboardManager is not loaded yet.');
   }
 }
 
+/**
+ * スコアボードの更新
+ */
 function updateScoreDisplay(serverResult = null) {
   if (serverResult) {
     if (elements.wpmValue) elements.wpmValue.textContent = serverResult.wpm;
@@ -195,19 +179,18 @@ function updateScoreDisplay(serverResult = null) {
   if (elements.wpmValue) elements.wpmValue.textContent = wpm;
 }
 
+/**
+ * タイマー文字列の整形
+ */
 function formatTime(seconds) {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-function updateTimer() {
-  if (state.startTime && state.isStarted) {
-    state.elapsedTime = Math.floor((Date.now() - state.startTime) / 1000);
-    if (elements.timeValue) elements.timeValue.textContent = formatTime(state.elapsedTime);
-  }
-}
-
+/**
+ * ゲーム終了処理
+ */
 async function finishGame() {
   state.isStarted = false;
   state.isWaitingRestart = true;
@@ -218,15 +201,23 @@ async function finishGame() {
   }
   
   elements.typingInput.disabled = true;
-  elements.startBtn.textContent = "結果送信中...";
+  elements.startBtn.textContent = "送信中...";
 
   try {
-    const result = await sendScoreResult();
+    const elapsedMs = Date.now() - new Date(state.sessionStartedAt).getTime();
+    
+    const result = await api.submitScore({
+      sessionId: state.sessionId,
+      totalTyped: state.totalTyped,
+      missCount: state.missCount,
+      elapsedMs: elapsedMs
+    });
+
     updateScoreDisplay(result);
     elements.startBtn.textContent = "リプレイ";
     elements.wordDisplay.innerHTML = `
-      <div class="finish-area">
-        <div class="text-xl mb-2">終了！スコアが保存されました</div>
+      <div class="finish-area text-center">
+        <div class="text-xl mb-2 font-bold">終了！スコアを保存しました</div>
         <div class="text-sm opacity-70">[Space] または [Enter] でリプレイ</div>
       </div>
     `;
@@ -236,6 +227,9 @@ async function finishGame() {
   }
 }
 
+/**
+ * 入力イベントハンドラ
+ */
 function handleInputChange(e) {
   if (!state.isStarted) {
     e.target.value = '';
@@ -243,6 +237,7 @@ function handleInputChange(e) {
   }
 
   const newValue = e.target.value;
+  
   if (newValue.length < state.inputValue.length) {
     state.inputValue = newValue;
     state.currentIndex = newValue.length;
@@ -263,9 +258,10 @@ function handleInputChange(e) {
   } else {
     state.score.mistakes++;
     state.missCount++;
-    sounds.playError(); // SoundManagerクラスのインスタンス経由
+    sounds.playError();
     state.pressedKey = lastChar;
     e.target.value = state.inputValue;
+    
     setTimeout(() => {
       state.pressedKey = '';
       refreshKeyboard();
@@ -288,6 +284,9 @@ function handleInputChange(e) {
   }
 }
 
+/**
+ * ゲーム開始ハンドラ
+ */
 async function handleStart() {
   if (state.isStarted) {
     finishGame();
@@ -297,9 +296,11 @@ async function handleStart() {
   try {
     state.isWaitingRestart = false;
     elements.startBtn.disabled = true;
-    elements.startBtn.textContent = "起動中...";
+    elements.startBtn.textContent = "...";
     
-    await requestStartSession(state.selectedCategory);
+    const sessionData = await api.startSession(state.selectedCategory);
+    state.sessionId = sessionData.sessionId;
+    state.sessionStartedAt = sessionData.startedAt;
     
     state.isStarted = true;
     state.startTime = Date.now();
@@ -310,7 +311,10 @@ async function handleStart() {
     state.completedWords = 0;
 
     if (state.timerInterval) clearInterval(state.timerInterval);
-    state.timerInterval = setInterval(updateTimer, 1000);
+    state.timerInterval = setInterval(() => {
+      state.elapsedTime = Math.floor((Date.now() - state.startTime) / 1000);
+      if (elements.timeValue) elements.timeValue.textContent = formatTime(state.elapsedTime);
+    }, 1000);
 
     loadNextWord();
     updateScoreDisplay();
@@ -322,13 +326,16 @@ async function handleStart() {
 
   } catch (e) {
     console.error(e);
-    alert("開始できませんでした。ログイン状態を確認してください。");
+    alert("セッションを開始できませんでした。ログイン状態を確認してください。");
   } finally {
     elements.startBtn.disabled = false;
     elements.startBtn.textContent = state.isStarted ? "中断" : "スタート";
   }
 }
 
+/**
+ * キー入力イベント
+ */
 function handleKeyDown(e) {
   if (state.isWaitingRestart && (e.key === 'Enter' || e.key === ' ')) {
     e.preventDefault();
@@ -339,6 +346,9 @@ function handleKeyDown(e) {
   refreshKeyboard();
 }
 
+/**
+ * キーアップイベント
+ */
 function handleKeyUp() {
   setTimeout(() => {
     state.pressedKey = '';
@@ -347,7 +357,8 @@ function handleKeyUp() {
 }
 
 // --- 4. 初期化 ---
-function initialize() {
+async function initialize() {
+  // イベントリスナー登録
   elements.categorySelect?.addEventListener('change', (e) => {
     state.selectedCategory = e.target.value;
     if (state.isStarted) finishGame();
@@ -366,9 +377,17 @@ function initialize() {
   if (elements.loginBtn && window.login) elements.loginBtn.addEventListener('click', window.login);
   if (elements.logoutBtn && window.logout) elements.logoutBtn.addEventListener('click', window.logout);
 
-  loadWords();
+  // 初期データロード
+  await loadWords();
+  
+  // 季節演出の初期化
   if (window.initSeasonalEffect) window.initSeasonalEffect('seasonalCanvas');
+  
+  // 【重要】初期状態の描画を強制実行
+  renderWordDisplay();
+  refreshKeyboard();
   updateScoreDisplay();
 }
 
+// ページロード完了時に起動
 window.addEventListener('load', initialize);
