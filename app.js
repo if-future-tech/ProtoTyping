@@ -57,6 +57,21 @@ const elements = {
 // --- 3. コアロジック関数 ---
 
 /**
+ * 認証状態に基づいたUIの更新
+ */
+function updateAuthUI(isLoggedIn) {
+  if (elements.loginBtn && elements.logoutBtn) {
+    if (isLoggedIn) {
+      elements.loginBtn.style.display = 'none';
+      elements.logoutBtn.style.display = 'inline-block';
+    } else {
+      elements.loginBtn.style.display = 'inline-block';
+      elements.logoutBtn.style.display = 'none';
+    }
+  }
+}
+
+/**
  * 単語リストの読み込み
  */
 async function loadWords() {
@@ -339,27 +354,28 @@ async function handleStart() {
     elements.startBtn.disabled = true;
     elements.startBtn.textContent = "...";
     
-    // ログイン状態を確認
-    // COOP等の制限があるため、ブラウザ側での window.closed 監視を避け、
-    // API Manager 経由で取得できるかどうかのみに集中する
+    // ログイン状態を厳密に確認
     let token = null;
     try {
+        // FirebaseAuth.getAuthToken() が ポップアップ失敗時に null を返す前提
         token = await api.getAuthToken();
     } catch (tokenErr) {
-        console.warn("Token acquisition failed or was blocked:", tokenErr);
+        console.warn("Token acquisition failed:", tokenErr);
     }
 
     if (token) {
       // ログイン済み：サーバーと通信してセッション開始
       console.log("Authenticated. Starting session...");
       state.isGuestMode = false;
+      updateAuthUI(true); // UIをログイン状態に強制同期
       const sessionData = await api.startSession(state.selectedCategory);
       state.sessionId = sessionData.sessionId;
       state.sessionStartedAt = sessionData.startedAt;
     } else {
       // 未ログイン：ゲストモードで続行
-      console.log("No token or auth blocked. Entering guest mode.");
+      console.log("No valid token. Entering guest mode.");
       state.isGuestMode = true;
+      updateAuthUI(false); // UIを未ログイン状態に強制同期
       state.sessionId = null;
       state.sessionStartedAt = new Date().toISOString();
     }
@@ -396,11 +412,9 @@ async function handleStart() {
 
   } catch (e) {
     console.error("Game start error:", e);
-    // サーバーエラー時も、せっかくなのでゲストモードとして遊べるようにする
     state.isGuestMode = true;
     state.isCountingDown = false;
     state.isStarted = true;
-    // エラーが起きた場合でも、タイマーが残っているならクリアする
     if (state.timerInterval) clearInterval(state.timerInterval);
   } finally {
     elements.startBtn.disabled = false;
@@ -448,11 +462,26 @@ async function initialize() {
     elements.soundToggle.classList.toggle('active', active);
   });
 
+  // 初期の認証状態チェック（ページロード時）
+  try {
+    const token = await api.getAuthToken();
+    updateAuthUI(!!token);
+  } catch(e) {
+    updateAuthUI(false);
+  }
+
   if (elements.loginBtn && typeof window.login === 'function') {
-    elements.loginBtn.addEventListener('click', window.login);
+    elements.loginBtn.addEventListener('click', async () => {
+        await window.login();
+        const token = await api.getAuthToken();
+        updateAuthUI(!!token);
+    });
   }
   if (elements.logoutBtn && typeof window.logout === 'function') {
-    elements.logoutBtn.addEventListener('click', window.logout);
+    elements.logoutBtn.addEventListener('click', async () => {
+        await window.logout();
+        updateAuthUI(false);
+    });
   }
 
   await loadWords();
