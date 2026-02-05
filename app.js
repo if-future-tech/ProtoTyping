@@ -208,6 +208,7 @@ function formatTime(seconds) {
  * ゲーム終了処理
  */
 async function finishGame() {
+  console.log("Finishing game. GuestMode:", state.isGuestMode);
   state.isStarted = false;
   state.isWaitingRestart = true;
   
@@ -218,7 +219,7 @@ async function finishGame() {
   
   elements.typingInput.disabled = true;
 
-  // ログインしていない場合はローカル表示のみで終了
+  // 1. ゲストモード判定
   if (state.isGuestMode) {
     elements.startBtn.textContent = "リプレイ";
     elements.wordDisplay.innerHTML = `
@@ -230,23 +231,27 @@ async function finishGame() {
     return;
   }
 
-  // ログイン済みの場合の保存フロー
+  // 2. ログイン済み保存フロー
   elements.startBtn.textContent = "保存中...";
   elements.wordDisplay.innerHTML = `
-    <div style="text-align: center; opacity: 0.7;">
-      <div style="font-size: 1rem;">スコアを送信しています...</div>
+    <div style="text-align: center; padding: 20px;">
+      <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 10px;">保存中...</div>
+      <div style="font-size: 0.8rem; opacity: 0.6;">スコアを送信しています</div>
     </div>
   `;
 
   try {
     const elapsedMs = Date.now() - new Date(state.sessionStartedAt).getTime();
-    
+    console.log("Submitting score for session:", state.sessionId);
+
     const result = await api.submitScore({
       sessionId: state.sessionId,
       totalTyped: state.totalTyped,
       missCount: state.missCount,
       elapsedMs: elapsedMs
     });
+
+    console.log("Score submitted successfully:", result);
 
     updateScoreDisplay(result);
     elements.startBtn.textContent = "リプレイ";
@@ -260,9 +265,9 @@ async function finishGame() {
     console.error("Score submission error:", e);
     elements.startBtn.textContent = "再試行";
     elements.wordDisplay.innerHTML = `
-      <div style="text-align: center;">
+      <div style="text-align: center; padding: 20px;">
         <div style="color: #ef4444; font-weight: bold; margin-bottom: 5px;">保存に失敗しました</div>
-        <div style="font-size: 0.75rem; opacity: 0.6;">通信状況を確認してください</div>
+        <div style="font-size: 0.75rem; opacity: 0.6;">通信エラーまたはサーバーの問題です</div>
       </div>
     `;
   }
@@ -338,12 +343,14 @@ async function handleStart() {
     const token = await api.getAuthToken();
     if (token) {
       // ログイン済み：サーバーと通信してセッション開始
+      console.log("Authenticated. Starting session...");
       state.isGuestMode = false;
       const sessionData = await api.startSession(state.selectedCategory);
       state.sessionId = sessionData.sessionId;
       state.sessionStartedAt = sessionData.startedAt;
     } else {
       // 未ログイン：ゲストモードで続行
+      console.log("No token. Entering guest mode.");
       state.isGuestMode = true;
       state.sessionId = null;
       state.sessionStartedAt = new Date().toISOString();
