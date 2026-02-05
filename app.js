@@ -340,7 +340,15 @@ async function handleStart() {
     elements.startBtn.textContent = "...";
     
     // ログイン状態を確認
-    const token = await api.getAuthToken();
+    // COOP等の制限があるため、ブラウザ側での window.closed 監視を避け、
+    // API Manager 経由で取得できるかどうかのみに集中する
+    let token = null;
+    try {
+        token = await api.getAuthToken();
+    } catch (tokenErr) {
+        console.warn("Token acquisition failed or was blocked:", tokenErr);
+    }
+
     if (token) {
       // ログイン済み：サーバーと通信してセッション開始
       console.log("Authenticated. Starting session...");
@@ -350,7 +358,7 @@ async function handleStart() {
       state.sessionStartedAt = sessionData.startedAt;
     } else {
       // 未ログイン：ゲストモードで続行
-      console.log("No token. Entering guest mode.");
+      console.log("No token or auth blocked. Entering guest mode.");
       state.isGuestMode = true;
       state.sessionId = null;
       state.sessionStartedAt = new Date().toISOString();
@@ -392,6 +400,8 @@ async function handleStart() {
     state.isGuestMode = true;
     state.isCountingDown = false;
     state.isStarted = true;
+    // エラーが起きた場合でも、タイマーが残っているならクリアする
+    if (state.timerInterval) clearInterval(state.timerInterval);
   } finally {
     elements.startBtn.disabled = false;
     elements.startBtn.textContent = state.isStarted ? "中断" : "スタート";
