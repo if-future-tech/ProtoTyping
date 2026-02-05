@@ -18,6 +18,7 @@ const state = {
   elapsedTime: 0,
   pressedKey: '',
   isStarted: false,
+  isCountingDown: false, // カウントダウン中フラグ
   isWaitingRestart: false, // 終了後のリスタート待機フラグ
   timerInterval: null,
   
@@ -33,7 +34,6 @@ const state = {
 };
 
 // --- 2. マネージャーのインスタンス化 ---
-// 外部ファイル (api.js, sound.js) で定義されたクラスを利用
 const api = new APIManager(API_BASE_URL);
 const sounds = new SoundManager();
 
@@ -81,9 +81,28 @@ async function loadWords() {
     }
   } catch (error) {
     console.error('Failed to load words.json:', error);
-    // フォールバックデータ
     state.wordData = { categories: [{ id: 'basic', name: '基本', words: ['TYPING'] }] };
   }
+}
+
+/**
+ * カウントダウン（信号灯）の描画
+ * @param {number} count 3, 2, 1, 0 (0は開始)
+ */
+function renderCountdown(count) {
+  if (!elements.wordDisplay) return;
+  
+  // 縦型信号灯のHTML構造
+  elements.wordDisplay.innerHTML = `
+    <div class="signal-container flex flex-col items-center gap-2 p-4 bg-gray-800 rounded-full border-4 border-gray-600 w-20 mx-auto">
+      <div class="w-12 h-12 rounded-full border-2 border-gray-900 ${count === 3 ? 'bg-red-500 shadow-[0_0_20px_#ef4444]' : 'bg-red-900'} transition-all duration-200"></div>
+      <div class="w-12 h-12 rounded-full border-2 border-gray-900 ${count === 2 ? 'bg-yellow-500 shadow-[0_0_20px_#eab308]' : 'bg-yellow-900'} transition-all duration-200"></div>
+      <div class="w-12 h-12 rounded-full border-2 border-gray-900 ${count === 1 ? 'bg-green-500 shadow-[0_0_20px_#22c55e]' : 'bg-green-900'} transition-all duration-200"></div>
+    </div>
+    <div class="text-4xl font-black mt-4 animate-pulse">
+      ${count > 0 ? count : 'GO!'}
+    </div>
+  `;
 }
 
 /**
@@ -101,7 +120,6 @@ function loadNextWord() {
   
   if (elements.typingInput) elements.typingInput.value = '';
   
-  // 視覚演出
   elements.wordDisplay.classList.add('animate');
   setTimeout(() => elements.wordDisplay.classList.remove('animate'), 600);
 
@@ -114,6 +132,9 @@ function loadNextWord() {
  */
 function renderWordDisplay() {
   if (!elements.wordDisplay) return;
+  
+  if (state.isCountingDown) return; // カウントダウン中は何もしない
+
   elements.wordDisplay.innerHTML = '';
   
   if (!state.currentWord) {
@@ -140,18 +161,9 @@ function renderWordDisplay() {
  * キーボード表示の更新
  */
 function refreshKeyboard() {
-  // window.KeyboardManager または KeyboardManager が存在するか確認
   const km = window.KeyboardManager || (typeof KeyboardManager !== 'undefined' ? KeyboardManager : null);
-  
   if (km) {
-    km.render(
-      'keyboard', 
-      state.pressedKey, 
-      state.currentWord, 
-      state.currentIndex
-    );
-  } else {
-    console.warn('KeyboardManager is not loaded yet.');
+    km.render('keyboard', state.pressedKey, state.currentWord, state.currentIndex);
   }
 }
 
@@ -166,10 +178,7 @@ function updateScoreDisplay(serverResult = null) {
   }
 
   const totalKeystrokes = state.score.correct + state.score.mistakes;
-  const accuracy = totalKeystrokes > 0 
-    ? ((state.score.correct / totalKeystrokes) * 100).toFixed(1) 
-    : '0.0';
-  
+  const accuracy = totalKeystrokes > 0 ? ((state.score.correct / totalKeystrokes) * 100).toFixed(1) : '0.0';
   const timeInMinutes = state.elapsedTime / 60;
   const wpm = timeInMinutes > 0 ? Math.round((state.score.correct / 5) / timeInMinutes) : 0;
   
@@ -205,7 +214,6 @@ async function finishGame() {
 
   try {
     const elapsedMs = Date.now() - new Date(state.sessionStartedAt).getTime();
-    
     const result = await api.submitScore({
       sessionId: state.sessionId,
       totalTyped: state.totalTyped,
@@ -231,13 +239,12 @@ async function finishGame() {
  * 入力イベントハンドラ
  */
 function handleInputChange(e) {
-  if (!state.isStarted) {
+  if (!state.isStarted || state.isCountingDown) {
     e.target.value = '';
     return;
   }
 
   const newValue = e.target.value;
-  
   if (newValue.length < state.inputValue.length) {
     state.inputValue = newValue;
     state.currentIndex = newValue.length;
@@ -261,11 +268,7 @@ function handleInputChange(e) {
     sounds.playError();
     state.pressedKey = lastChar;
     e.target.value = state.inputValue;
-    
-    setTimeout(() => {
-      state.pressedKey = '';
-      refreshKeyboard();
-    }, 100);
+    setTimeout(() => { state.pressedKey = ''; refreshKeyboard(); }, 100);
     updateScoreDisplay();
     return;
   }
@@ -285,10 +288,10 @@ function handleInputChange(e) {
 }
 
 /**
- * ゲーム開始ハンドラ
+ * ゲーム開始ハンドラ（カウントダウン含む）
  */
 async function handleStart() {
-  if (state.isStarted) {
+  if (state.isStarted || state.isCountingDown) {
     finishGame();
     return;
   }
@@ -298,10 +301,29 @@ async function handleStart() {
     elements.startBtn.disabled = true;
     elements.startBtn.textContent = "...";
     
+    // APIセッション開始
     const sessionData = await api.startSession(state.selectedCategory);
     state.sessionId = sessionData.sessionId;
     state.sessionStartedAt = sessionData.startedAt;
     
+    // カウントダウン開始
+    state.isCountingDown = true;
+    elements.typingInput.disabled = true;
+    
+    for (let i = 3; i >= 0; i--) {
+      renderCountdown(i);
+      if (i > 0) {
+        // カウント音（もしあれば）
+        // sounds.playTick(); 
+      } else {
+        // 開始音（もしあれば）
+        // sounds.playGo();
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    // カウントダウン終了、本番開始
+    state.isCountingDown = false;
     state.isStarted = true;
     state.startTime = Date.now();
     state.score = { correct: 0, mistakes: 0 };
@@ -318,7 +340,6 @@ async function handleStart() {
 
     loadNextWord();
     updateScoreDisplay();
-    if (elements.timeValue) elements.timeValue.textContent = '0:00';
     
     elements.typingInput.disabled = false;
     elements.typingInput.value = '';
@@ -326,7 +347,7 @@ async function handleStart() {
 
   } catch (e) {
     console.error(e);
-    alert("セッションを開始できませんでした。ログイン状態を確認してください。");
+    alert("エラーが発生しました。");
   } finally {
     elements.startBtn.disabled = false;
     elements.startBtn.textContent = state.isStarted ? "中断" : "スタート";
@@ -358,7 +379,6 @@ function handleKeyUp() {
 
 // --- 4. 初期化 ---
 async function initialize() {
-  // イベントリスナー登録
   elements.categorySelect?.addEventListener('change', (e) => {
     state.selectedCategory = e.target.value;
     if (state.isStarted) finishGame();
@@ -377,17 +397,12 @@ async function initialize() {
   if (elements.loginBtn && window.login) elements.loginBtn.addEventListener('click', window.login);
   if (elements.logoutBtn && window.logout) elements.logoutBtn.addEventListener('click', window.logout);
 
-  // 初期データロード
   await loadWords();
-  
-  // 季節演出の初期化
   if (window.initSeasonalEffect) window.initSeasonalEffect('seasonalCanvas');
   
-  // 【重要】初期状態の描画を強制実行
   renderWordDisplay();
   refreshKeyboard();
   updateScoreDisplay();
 }
 
-// ページロード完了時に起動
 window.addEventListener('load', initialize);
