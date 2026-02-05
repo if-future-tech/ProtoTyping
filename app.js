@@ -29,7 +29,7 @@ const state = {
   sessionStartedAt: null,
   totalTyped: 0,
   missCount: 0,
-  isGuestMode: false // ゲスト（未ログイン）状態を追跡
+  isGuestMode: false 
 };
 
 // --- 2. マネージャーのインスタンス化 ---
@@ -58,8 +58,10 @@ const elements = {
 
 /**
  * 認証状態に基づいたUIの更新
+ * ログイン・ログアウトボタンの表示/非表示を確実に切り替える
  */
 function updateAuthUI(isLoggedIn) {
+  console.log("updateAuthUI called. isLoggedIn:", isLoggedIn);
   if (elements.loginBtn && elements.logoutBtn) {
     if (isLoggedIn) {
       elements.loginBtn.style.display = 'none';
@@ -107,10 +109,10 @@ function renderCountdown(count) {
   
   let bgColor = "#f3f4f6";
   
-  if (count === 3) bgColor = "#ef4444"; // 赤
-  if (count === 2) bgColor = "#eab308"; // 黄
-  if (count === 1) bgColor = "#22c55e"; // 緑
-  if (count === 0) bgColor = "#3b82f6"; // 青
+  if (count === 3) bgColor = "#ef4444"; 
+  if (count === 2) bgColor = "#eab308"; 
+  if (count === 1) bgColor = "#22c55e"; 
+  if (count === 0) bgColor = "#3b82f6"; 
 
   if (count >= 0) {
     elements.wordDisplay.style.backgroundColor = bgColor;
@@ -223,7 +225,6 @@ function formatTime(seconds) {
  * ゲーム終了処理
  */
 async function finishGame() {
-  console.log("Finishing game. GuestMode:", state.isGuestMode);
   state.isStarted = false;
   state.isWaitingRestart = true;
   
@@ -234,7 +235,6 @@ async function finishGame() {
   
   elements.typingInput.disabled = true;
 
-  // 1. ゲストモード判定
   if (state.isGuestMode) {
     elements.startBtn.textContent = "リプレイ";
     elements.wordDisplay.innerHTML = `
@@ -246,7 +246,6 @@ async function finishGame() {
     return;
   }
 
-  // 2. ログイン済み保存フロー
   elements.startBtn.textContent = "保存中...";
   elements.wordDisplay.innerHTML = `
     <div style="text-align: center; padding: 20px;">
@@ -257,16 +256,12 @@ async function finishGame() {
 
   try {
     const elapsedMs = Date.now() - new Date(state.sessionStartedAt).getTime();
-    console.log("Submitting score for session:", state.sessionId);
-
     const result = await api.submitScore({
       sessionId: state.sessionId,
       totalTyped: state.totalTyped,
       missCount: state.missCount,
       elapsedMs: elapsedMs
     });
-
-    console.log("Score submitted successfully:", result);
 
     updateScoreDisplay(result);
     elements.startBtn.textContent = "リプレイ";
@@ -354,28 +349,22 @@ async function handleStart() {
     elements.startBtn.disabled = true;
     elements.startBtn.textContent = "...";
     
-    // ログイン状態を厳密に確認
     let token = null;
     try {
-        // FirebaseAuth.getAuthToken() が ポップアップ失敗時に null を返す前提
         token = await api.getAuthToken();
     } catch (tokenErr) {
         console.warn("Token acquisition failed:", tokenErr);
     }
 
     if (token) {
-      // ログイン済み：サーバーと通信してセッション開始
-      console.log("Authenticated. Starting session...");
       state.isGuestMode = false;
-      updateAuthUI(true); // UIをログイン状態に強制同期
+      updateAuthUI(true); 
       const sessionData = await api.startSession(state.selectedCategory);
       state.sessionId = sessionData.sessionId;
       state.sessionStartedAt = sessionData.startedAt;
     } else {
-      // 未ログイン：ゲストモードで続行
-      console.log("No valid token. Entering guest mode.");
       state.isGuestMode = true;
-      updateAuthUI(false); // UIを未ログイン状態に強制同期
+      updateAuthUI(false); 
       state.sessionId = null;
       state.sessionStartedAt = new Date().toISOString();
     }
@@ -462,13 +451,16 @@ async function initialize() {
     elements.soundToggle.classList.toggle('active', active);
   });
 
-  // 初期の認証状態チェック（ページロード時）
-  try {
-    const token = await api.getAuthToken();
-    updateAuthUI(!!token);
-  } catch(e) {
-    updateAuthUI(false);
-  }
+  // 初期の認証状態チェック。Firebaseの初期化を待つために少し遅延させるか、
+  // getAuthToken内で待機するように調整。
+  setTimeout(async () => {
+      try {
+        const token = await api.getAuthToken();
+        updateAuthUI(!!token);
+      } catch(e) {
+        updateAuthUI(false);
+      }
+  }, 1000);
 
   if (elements.loginBtn && typeof window.login === 'function') {
     elements.loginBtn.addEventListener('click', async () => {
