@@ -1,6 +1,5 @@
 {
   "hosting": {
-    "target": "ProtoTyping",
     "public": "frontend/public",
     "ignore": [
       "firebase.json",

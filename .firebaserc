@@ -1,14 +1,5 @@
 {
   "projects": {
-    "default": "ProtoTyping"
-  },
-  "targets": {
-    "ProtoTyping": {
-      "hosting": {
-        "ProtoTyping": [
-          "proto-typing"
-        ]
-      }
-    }
+    "default": "typing-ec-wp"
   }
 }
