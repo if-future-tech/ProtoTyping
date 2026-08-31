@@ -1,0 +1,68 @@
+{
+  "categories": [
+    {
+      "id": "basic",
+      "name": "基本単語",
+      "words": [
+        "the quick brown fox",
+        "hello world",
+        "practice makes perfect",
+        "typing speed",
+        "home row keys",
+        "keyboard layout",
+        "accuracy matters",
+        "finger position",
+        "touch typing",
+        "daily practice"
+      ]
+    },
+    {
+      "id": "programming",
+      "name": "プログラミング",
+      "words": [
+        "function example() {}",
+        "const result = data;",
+        "if (condition) return;",
+        "import { useState } from 'react';",
+        "class Component extends React.Component",
+        "async function fetchData() {}",
+        "try { code } catch (error) {}",
+        "export default App;",
+        "return <div>Hello</div>;",
+        "let array = [1, 2, 3];"
+      ]
+    },
+    {
+      "id": "sentences",
+      "name": "長文",
+      "words": [
+        "The quick brown fox jumps over the lazy dog.",
+        "Practice typing every day to improve your speed and accuracy.",
+        "Touch typing is an essential skill in the modern digital age.",
+        "Proper finger placement on the home row keys is fundamental.",
+        "Regular practice helps develop muscle memory for faster typing.",
+        "Focus on accuracy first, then gradually increase your speed.",
+        "Keep your wrists elevated and maintain good posture while typing.",
+        "Breaking down complex words into smaller parts helps with accuracy.",
+        "Consistency is key when learning to touch type effectively.",
+        "Set realistic goals and track your progress over time."
+      ]
+    },
+    {
+      "id": "numbers",
+      "name": "数字・記号",
+      "words": [
+        "1234567890",
+        "user@example.com",
+        "https://website.com",
+        "Price: $19.99",
+        "Date: 2026-01-11",
+        "var x = 100;",
+        "result += value * 2;",
+        "array[0] = 'first';",
+        "(123) 456-7890",
+        "50% off today!"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+# ログファイル
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+firebase-debug.log*
+firebase-debug.*.log*
+
+# Firebaseのキャッシュ
+.firebase/
+
+# Firebaseの設定
+
+# 他の開発者が独自のFirebaseプロジェクトを作成できるようにしたい場合は、以下のコメントを解除してください。
+# 同じFirebaseプロジェクトで作業するチームの場合、全員が .firebaserc に記載された同じプロジェクトにデプロイできるよう、コメントアウトのままにしておくことを推奨します。
+# .firebaserc
+
+# 実行時（ランタイム）データ
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# jscoverage/JSCover によって生成されたカバレッジ計測用ライブラリのディレクトリ
+lib-cov
+
+# istanbul などのツールで使用されるカバレッジ用ディレクトリ
+coverage
+
+# nyc テストカバレッジデータ
+.nyc_output
+
+# Gruntの中間ストレージ (http://gruntjs.com/creating-plugins#storing-task-files)
+.grunt
+
+# Bower依存関係ディレクトリ (https://bower.io/)
+bower_components
+
+# node-waf 設定ファイル
+.lock-wscript
+
+# コンパイル済みのバイナリアドオン (http://nodejs.org/api/addons.html)
+build/Release
+
+# 依存関係（パッケージ）ディレクトリ
+node_modules/
+
+# 任意の npm キャッシュディレクトリ
+.npm
+
+# 任意の eslint キャッシュ
+.eslintcache
+
+# 任意の REPL 実行履歴
+.node_repl_history
+
+# 'npm pack' の出力ファイル
+*.tgz
+
+# Yarn インテグリティファイル
+.yarn-integrity
+
+# dotenv 環境変数ファイル
+.env
+
+# dataconnect 生成ファイル
+.dataconnect
+
+#他に回避したいファイルなど
+*.md

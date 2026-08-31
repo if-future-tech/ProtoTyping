@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>タイピング練習@FireBase By GitHub Builds</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Seasonal Effect Canvas -->
+    <canvas id="seasonalCanvas" class="seasonal-canvas"></canvas>
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+      <div class="title-area" style="display: flex; align-items: center; gap: 15px;">
+      <h1 class="title">タイピング練習</h1>
+
+      <div id="authStatus" class="auth-status" style="font-size: 0.9rem; color: #666;">
+        <span id="loginPrompt">ようこそ <button id="loginBtn"  class="category-select">おじぎ【ログイン】する🙇‍♂️</button></span>
+        <span id="userGreeting" class="user-greeting" style="display: none;">
+          <span id="userName"></span>さん、お元気ですか
+          <button id="editNameBtn" class="icon-btn" title="表示名を編集" type="button">✎</button>
+          <button id="logoutBtn" class="category-select">バイバイ【ログアウト】する👋</button>
+        </span>
+      </div>
+    </div>
+        <div class="header-controls">
+          <!-- Category Select -->
+          <select id="categorySelect" class="category-select">
+            <option value="basic">基本単語</option>
+          </select>
+
+          <!-- Start Button -->
+          <button id="startBtn" class="btn btn-primary">スタート</button>
+
+          <!-- Ranking Button -->
+          <button id="rankingBtn" class="btn btn-ranking" type="button">🏆 ランキング</button>
+
+          <!-- BGM Toggle -->
+          <button id="bgmToggle" class="icon-btn" title="BGM OFF">
+            <svg class="icon" id="bgmIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+              <!-- OFF状態のみ表示される消音スラッシュ。ON時はCSSで非表示にする -->
+              <line id="bgmMuteSlash" x1="2" y1="2" x2="22" y2="22"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Score Board -->
+      <div class="score-board" id="scoreBoard">
+        <div class="stat-card stat-blue">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <div class="stat-content">
+            <p class="stat-label">経過時間</p>
+            <p class="stat-value" id="timeValue">0:00</p>
+          </div>
+        </div>
+
+        <div class="stat-card stat-green">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>
+          <div class="stat-content">
+            <p class="stat-label">正解数</p>
+            <p class="stat-value" id="correctValue">0</p>
+          </div>
+        </div>
+
+        <div class="stat-card stat-red">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <div class="stat-content">
+            <p class="stat-label">ミス数</p>
+            <p class="stat-value" id="mistakesValue">0</p>
+          </div>
+        </div>
+
+        <div class="stat-card stat-purple">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+            <polyline points="17 6 23 6 23 12"></polyline>
+          </svg>
+          <div class="stat-content">
+            <p class="stat-label">精度</p>
+            <p class="stat-value" id="accuracyValue">0.0%</p>
+          </div>
+        </div>
+
+        <div class="stat-card stat-indigo">
+          <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+            <polyline points="17 6 23 6 23 12"></polyline>
+          </svg>
+          <div class="stat-content">
+            <p class="stat-label">WPM</p>
+            <p class="stat-value" id="wpmValue">0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text Display Area -->
+      <div class="text-display-area">
+        <!-- Question Area with Telop Animation -->
+        <div class="question-area">
+          <p class="question-label">出題</p>
+          <div class="word-display" id="wordDisplay"></div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+          <p class="input-label">入力</p>
+          <div class="input-container">
+            <input 
+              type="text" 
+              id="typingInput" 
+              class="typing-input"
+              placeholder="ここに入力してください..."
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Keyboard -->
+      <div class="keyboard" id="keyboard"></div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>FireBase Hosting By GitHub Builds | ホームポジションを意識して練習しましょう</p>
+    </footer>
+
+    <!-- Ranking Modal -->
+    <div class="ranking-overlay" id="rankingOverlay">
+      <div class="ranking-panel" role="dialog" aria-modal="true" aria-labelledby="rankingTitle">
+        <div class="ranking-header">
+          <h2 class="ranking-title" id="rankingTitle">🏆 ランキング</h2>
+          <button class="ranking-close" id="rankingCloseBtn" aria-label="閉じる">&times;</button>
+        </div>
+        <div class="ranking-filter">
+          <select id="rankingCategorySelect" class="category-select"></select>
+        </div>
+        <p class="ranking-status" id="rankingStatus">読み込み中...</p>
+        <ul class="ranking-list" id="rankingList"></ul>
+      </div>
+    </div>
+  </div>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<script src="assets/firebase-auth.js"></script>
+<script src="assets/keyboard.js"></script>
+<script src="assets/seasonalEffect.js"></script>
+<script src="assets/bgm.js"></script>
+<script src="assets/words.js"></script>
+<script src="assets/profile.js"></script>
+<script src="app.js"></script>
+<script src="assets/ranking.js"></script>
+</body>
+</html>

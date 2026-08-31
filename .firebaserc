@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "ProtoTyping"
+  },
+  "targets": {
+    "ProtoTyping": {
+      "hosting": {
+        "ProtoTyping": [
+          "proto-typing"
+        ]
+      }
+    }
+  }
+}
