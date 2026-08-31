@@ -1,0 +1,44 @@
+name: Deploy Backend to Cloud Run
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**" # backend フォルダ配下に変更があった時のみ起動
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend # Dockerfile が置かれているディレクトリ
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. github-action-deploy の JSON 鍵で GCP 認証
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # 2. Cloud SDK のセットアップ
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # 3. Docker の GCR 認証設定
+      - name: Authorize Docker
+        run: gcloud auth configure-docker gcr.io --quiet
+
+      # 4. Docker イメージのビルド ＆ GCR へのプッシュ
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/typing-app .
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/typing-app
+
+      # 5. Cloud Run へのデプロイ
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy typing-backend \
+            --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/typing-app \
+            --region asia-northeast1 \
+            --set-env-vars "FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }},PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},DATABASE_ID=(default)" \
+            --allow-unauthenticated
