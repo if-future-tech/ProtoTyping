@@ -5,7 +5,9 @@ class UserService
 {
     private const MAX_DISPLAY_NAME_LENGTH = 20;
 
-    public function __construct(private UserRepository $repo) {}
+    public function __construct(private UserRepository $repo)
+    {
+    }
 
     /**
      * プロフィールを取得する。存在しない場合は「初回利用者」として自動作成する。
@@ -30,9 +32,9 @@ class UserService
         $this->repo->create($uid, $email, $displayName, $createdAt);
 
         return $this->toResponse($uid, [
-            'email'        => $email,
+            'email' => $email,
             'display_name' => $displayName,
-            'created_at'   => $createdAt,
+            'created_at' => $createdAt,
         ]);
     }
 
@@ -46,7 +48,7 @@ class UserService
             throw new RuntimeException('authentication required');
         }
 
-        $displayName = trim((string)$displayName);
+        $displayName = trim((string) $displayName);
         if ($displayName === '') {
             throw new InvalidArgumentException('displayName required');
         }
@@ -80,10 +82,10 @@ class UserService
     private function toResponse(string $uid, array $fields): array
     {
         return [
-            'uid'         => $uid,
+            'uid' => $uid,
             'displayName' => $fields['display_name'] ?? 'プレイヤー',
-            'email'       => $fields['email'] ?? null,
-            'createdAt'   => $fields['created_at'] ?? null,
+            'email' => $fields['email'] ?? null,
+            'createdAt' => $fields['created_at'] ?? null,
         ];
     }
 }

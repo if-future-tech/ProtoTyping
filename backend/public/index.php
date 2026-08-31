@@ -1,5 +1,5 @@
 <?php
-// public/index.php
+// backend/public/index.php
 require_once __DIR__ . '/../app/Router.php';
 require_once __DIR__ . '/../app/Support/FirebaseAuthenticator.php';
 require_once __DIR__ . '/../app/Controllers/SessionController.php';

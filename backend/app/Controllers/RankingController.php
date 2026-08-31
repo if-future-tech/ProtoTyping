@@ -1,9 +1,11 @@
 <?php
-// app/Controllers/RankingController.php
+// backend/app/Controllers/RankingController.php
 
 class RankingController
 {
-    public function __construct(private RankingService $service) {}
+    public function __construct(private RankingService $service)
+    {
+    }
 
     public function getRanking(): void
     {
@@ -11,18 +13,18 @@ class RankingController
             // クエリパラメータ: ?category=programming&limit=20
             $category = $_GET['category'] ?? null;
             $limitParam = $_GET['limit'] ?? null;
-            $limit = $limitParam !== null ? (int)$limitParam : null;
+            $limit = $limitParam !== null ? (int) $limitParam : null;
 
             $ranking = $this->service->getTopScores($category, $limit);
 
             echo json_encode([
-                'ok'   => true,
+                'ok' => true,
                 'data' => $ranking,
             ]);
         } catch (Throwable $e) {
             http_response_code(400);
             echo json_encode([
-                'ok'    => false,
+                'ok' => false,
                 'error' => $e->getMessage(),
             ]);
         }

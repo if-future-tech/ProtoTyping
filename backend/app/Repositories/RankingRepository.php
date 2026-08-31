@@ -1,5 +1,5 @@
 <?php
-// app/Repositories/RankingRepository.php
+// backend/app/Repositories/RankingRepository.php
 
 /**
  * ランキング表示用にscoresコレクションを検索するリポジトリ

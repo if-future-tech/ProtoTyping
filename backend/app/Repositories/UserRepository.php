@@ -1,5 +1,5 @@
 <?php
-// app/Repositories/UserRepository.php
+// backend/app/Repositories/UserRepository.php
 
 /**
  * ユーザープロフィールの永続化を管理するリポジトリ
@@ -30,7 +30,7 @@ class UserRepository
     {
         $fields = [
             'display_name' => $displayName,
-            'created_at'   => $createdAt,
+            'created_at' => $createdAt,
         ];
 
         if ($email) {

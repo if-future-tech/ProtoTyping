@@ -1,4 +1,5 @@
 <?php
+// backend/app/Repositories/ScoreRepository.php
 
 /**
  * スコアデータの永続化を管理するリポジトリ
@@ -24,22 +25,22 @@ class ScoreRepository
         // FirestoreRepository の formatFields が PHP の型 (int/float) を自動で
         // integerValue / doubleValue に変換するため、不整合が発生しません。
         $fields = [
-            'userId'     => $userId,
-            'wpm'        => (int)$data['wpm'],
-            'accuracy'   => (float)$data['accuracy'],
+            'userId' => $userId,
+            'wpm' => (int) $data['wpm'],
+            'accuracy' => (float) $data['accuracy'],
             'created_at' => date('c'), // ISO8601 -> timestampValue として処理される
-            'sessionId'  => (string)$documentId
+            'sessionId' => (string) $documentId
         ];
 
         // ランキングをカテゴリ別に絞り込めるよう、session側のcategoryをコピー（非正規化）
         if (!empty($data['category'])) {
-            $fields['category'] = (string)$data['category'];
+            $fields['category'] = (string) $data['category'];
         }
 
         // ランキング表示時にusersとJOINしなくて済むよう、表示名もコピー（非正規化）
         // プロフィール未作成のユーザーの場合は保存しない（ランキング側でフォールバック表示する）
         if (!empty($data['displayName'])) {
-            $fields['display_name'] = (string)$data['displayName'];
+            $fields['display_name'] = (string) $data['displayName'];
         }
 
         $this->firestore->createDocument('scores', $documentId, $fields);

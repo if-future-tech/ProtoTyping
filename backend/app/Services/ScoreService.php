@@ -1,13 +1,16 @@
 <?php
-// app/Services/ScoreService.php
-class ScoreService {
+// backend/app/Services/ScoreService.php
+class ScoreService
+{
     public function __construct(
         private ScoreRepository $scoreRepo,
         private SessionRepository $sessionRepo,
         private UserRepository $userRepo
-    ) {}
+    ) {
+    }
 
-    public function processAndSave(string $userId, array $rawData): array {
+    public function processAndSave(string $userId, array $rawData): array
+    {
         $sessionId = $rawData['sessionId'] ?? null;
         if (!$sessionId) {
             throw new InvalidArgumentException('sessionId required');
@@ -25,9 +28,9 @@ class ScoreService {
         }
 
         // 1. 計算
-        $totalTyped = (int)($rawData['totalTyped'] ?? 0);
-        $missCount  = (int)($rawData['missCount'] ?? 0);
-        $elapsedMs  = (int)($rawData['elapsedMs'] ?? 1); // 0除算防止
+        $totalTyped = (int) ($rawData['totalTyped'] ?? 0);
+        $missCount = (int) ($rawData['missCount'] ?? 0);
+        $elapsedMs = (int) ($rawData['elapsedMs'] ?? 1); // 0除算防止
 
         // WPM (Words Per Minute): 一般的な定義として「5文字で1ワード」として計算
         // (総タイプ数 / 5) / (ミリ秒 / 60000)
@@ -44,14 +47,14 @@ class ScoreService {
         $displayName = $profile['display_name'] ?? null;
 
         $processedData = [
-            'sessionId'   => $sessionId,
+            'sessionId' => $sessionId,
             // ランキングをカテゴリ別に集計・表示できるよう、sessionのcategoryを非正規化コピー
-            'category'    => $session['category'] ?? null,
+            'category' => $session['category'] ?? null,
             'displayName' => $displayName,
-            'wpm'         => (int)round($wpm),
-            'accuracy'    => (float)round($accuracy, 1),
-            'totalTyped'  => $totalTyped,
-            'missCount'   => $missCount
+            'wpm' => (int) round($wpm),
+            'accuracy' => (float) round($accuracy, 1),
+            'totalTyped' => $totalTyped,
+            'missCount' => $missCount
         ];
 
         // 2. Repository を通じて保存

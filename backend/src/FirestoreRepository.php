@@ -1,5 +1,5 @@
 <?php
-
+// backend/src/FirestoreRepository.php
 /**
  * Firestore REST API 接続管理クラス
  * 型の不整合（Display Misalignment）を防ぐため、PHPの型をFirestoreの型へ自動変換します。
@@ -22,7 +22,8 @@ class FirestoreRepository
      */
     private function getAccessToken(): string
     {
-        if ($this->accessToken) return $this->accessToken;
+        if ($this->accessToken)
+            return $this->accessToken;
 
         // 1. Cloud Run / GCE 環境 (Metadata Server)
         $url = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
@@ -37,7 +38,7 @@ class FirestoreRepository
         }
 
         // 2. Cloud Shell / ローカル環境 (gcloud fallback)
-        $token = trim((string)shell_exec('gcloud auth print-access-token'));
+        $token = trim((string) shell_exec('gcloud auth print-access-token'));
         return $this->accessToken = $token;
     }
 
@@ -59,7 +60,8 @@ class FirestoreRepository
         $url = "{$this->baseUrl}/{$collection}/{$documentId}";
         $response = $this->sendRequest('GET', $url);
 
-        if (isset($response['error'])) return null;
+        if (isset($response['error']))
+            return null;
         return $this->parseFields($response['fields'] ?? []);
     }
 
@@ -98,11 +100,13 @@ class FirestoreRepository
         mixed $whereValue = null
     ): array {
         $structuredQuery = [
-            'from'    => [['collectionId' => $collection]],
-            'orderBy' => [[
-                'field'     => ['fieldPath' => $orderByField],
-                'direction' => $direction,
-            ]],
+            'from' => [['collectionId' => $collection]],
+            'orderBy' => [
+                [
+                    'field' => ['fieldPath' => $orderByField],
+                    'direction' => $direction,
+                ]
+            ],
             'limit' => $limit,
         ];
 
@@ -110,7 +114,7 @@ class FirestoreRepository
             $structuredQuery['where'] = [
                 'fieldFilter' => [
                     'field' => ['fieldPath' => $whereField],
-                    'op'    => 'EQUAL',
+                    'op' => 'EQUAL',
                     'value' => $this->formatSingleValue($whereValue),
                 ],
             ];
@@ -126,7 +130,8 @@ class FirestoreRepository
         $results = [];
         foreach ($response as $item) {
             // 該当なしの場合、Firestoreは document キーの無い要素を返すことがあるためスキップ
-            if (!isset($item['document'])) continue;
+            if (!isset($item['document']))
+                continue;
 
             $name = $item['document']['name'] ?? '';
             $id = basename($name);
@@ -156,16 +161,16 @@ class FirestoreRepository
         $formatted = [];
         foreach ($fields as $key => $value) {
             if (is_int($value)) {
-                $formatted[$key] = ['integerValue' => (string)$value];
+                $formatted[$key] = ['integerValue' => (string) $value];
             } elseif (is_float($value)) {
-                $formatted[$key] = ['doubleValue' => (float)$value];
+                $formatted[$key] = ['doubleValue' => (float) $value];
             } elseif (is_bool($value)) {
                 $formatted[$key] = ['booleanValue' => $value];
             } elseif (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/', $value)) {
                 // ISO8601形式の文字列は timestampValue として扱う
                 $formatted[$key] = ['timestampValue' => $value];
             } else {
-                $formatted[$key] = ['stringValue' => (string)$value];
+                $formatted[$key] = ['stringValue' => (string) $value];
             }
         }
         return $formatted;
@@ -181,11 +186,11 @@ class FirestoreRepository
             $type = array_key_first($valueObj);
             $val = $valueObj[$type];
 
-            $parsed[$key] = match($type) {
-                'integerValue' => (int)$val,
-                'doubleValue'  => (float)$val,
-                'booleanValue' => (bool)$val,
-                default        => $val,
+            $parsed[$key] = match ($type) {
+                'integerValue' => (int) $val,
+                'doubleValue' => (float) $val,
+                'booleanValue' => (bool) $val,
+                default => $val,
             };
         }
         return $parsed;
@@ -199,8 +204,8 @@ class FirestoreRepository
         $token = $this->getAccessToken();
         $options = [
             'http' => [
-                'method'  => $method,
-                'header'  => [
+                'method' => $method,
+                'header' => [
                     'Content-Type: application/json',
                     'Authorization: Bearer ' . $token
                 ],
@@ -212,7 +217,7 @@ class FirestoreRepository
             $options['http']['content'] = json_encode($payload);
         }
 
-        $context  = stream_context_create($options);
+        $context = stream_context_create($options);
         $response = file_get_contents($url, false, $context);
 
         return json_decode($response, true) ?? [];

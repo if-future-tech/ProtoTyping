@@ -1,9 +1,11 @@
 <?php
-// app/Services/SessionService.php
+// backend/app/Services/SessionService.php
 
 class SessionService
 {
-    public function __construct(private SessionRepository $repo) {}
+    public function __construct(private SessionRepository $repo)
+    {
+    }
 
     /**
      * セッションを開始し、Firestoreへ正式な記録として保存する。

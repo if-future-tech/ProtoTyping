@@ -1,5 +1,5 @@
 <?php
-// app/Services/RankingService.php
+// backend/app/Services/RankingService.php
 
 class RankingService
 {
@@ -7,7 +7,9 @@ class RankingService
     private const DEFAULT_LIMIT = 10;
     private const MAX_LIMIT = 50;
 
-    public function __construct(private RankingRepository $repo) {}
+    public function __construct(private RankingRepository $repo)
+    {
+    }
 
     public function getTopScores(?string $category, ?int $limit): array
     {
@@ -33,12 +35,12 @@ class RankingService
             $fallbackName = $userId !== 'guest' ? substr($userId, 0, 8) : 'ゲスト';
 
             $ranking[] = [
-                'rank'        => $rank++,
-                'userId'      => $userId,
+                'rank' => $rank++,
+                'userId' => $userId,
                 'displayName' => $row['display_name'] ?? $fallbackName,
-                'wpm'         => $row['wpm'] ?? 0,
-                'accuracy'    => $row['accuracy'] ?? 0,
-                'category'    => $row['category'] ?? null,
+                'wpm' => $row['wpm'] ?? 0,
+                'accuracy' => $row['accuracy'] ?? 0,
+                'category' => $row['category'] ?? null,
             ];
         }
 

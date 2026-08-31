@@ -1,5 +1,5 @@
 <?php
-// app/Repositories/SessionRepository.php
+// backend/app/Repositories/SessionRepository.php
 
 /**
  * セッションデータの永続化を管理するリポジトリ
@@ -24,9 +24,9 @@ class SessionRepository
     public function create(string $sessionId, string $userId, string $category, string $startedAt): void
     {
         $fields = [
-            'id'         => $sessionId,
-            'user_id'    => $userId,
-            'category'   => $category,
+            'id' => $sessionId,
+            'user_id' => $userId,
+            'category' => $category,
             'started_at' => $startedAt, // ISO8601形式 -> timestampValueとして処理される
         ];
 

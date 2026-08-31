@@ -1,9 +1,11 @@
 <?php
-// app/Controllers/UserController.php
+// backend/app/Controllers/UserController.php
 
 class UserController
 {
-    public function __construct(private UserService $service) {}
+    public function __construct(private UserService $service)
+    {
+    }
 
     /**
      * GET /api/profile

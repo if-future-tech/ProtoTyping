@@ -1,13 +1,17 @@
 <?php
-// app/Controllers/ScoreController.php
-class ScoreController {
-    public function __construct(private ScoreService $service) {}
+// backend/app/Controllers/ScoreController.php
+class ScoreController
+{
+    public function __construct(private ScoreService $service)
+    {
+    }
 
-    public function submitScore(): void {
+    public function submitScore(): void
+    {
         try {
             // --- 認証の扉: IDトークンからUIDを取得（SessionControllerと共通処理） ---
             $idToken = FirebaseAuthenticator::extractToken();
-            $userId  = FirebaseAuthenticator::verifyAndGetUid($idToken);
+            $userId = FirebaseAuthenticator::verifyAndGetUid($idToken);
 
             $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
