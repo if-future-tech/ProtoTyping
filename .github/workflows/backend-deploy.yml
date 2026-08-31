@@ -1,9 +1,11 @@
 name: Deploy Backend to Cloud Run
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - "backend/**" # backend フォルダ配下に変更があった時のみ起動
+  workflow_dispatch:
 
 jobs:
   deploy:
