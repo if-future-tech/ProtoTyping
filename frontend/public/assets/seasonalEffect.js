@@ -25,7 +25,9 @@ function createSeasonalParticle(season) {
   const canvas = seasonalCanvasEl;
   const particle = {
     x: Math.random() * canvas.width,
-    y: Math.random() * -canvas.height,
+    // ホタルは「上空から降ってくる」ものではなく、その場でふわふわ漂う虫のため、
+    // 最初から画面内に出現させる（他の季節は従来通り画面上端の外側から降らせる）。
+    y: season === 'summer' ? Math.random() * canvas.height : Math.random() * -canvas.height,
     vx: 0,
     vy: 0,
     rotation: Math.random() * 360,
@@ -37,20 +39,24 @@ function createSeasonalParticle(season) {
 
   switch (season) {
     case 'spring':
-      particle.vx = (Math.random() - 0.5) * 1.5;
-      particle.vy = 0.5 + Math.random() * 0.5;
+      // 雪と比べて明らかに速すぎたため、やや落ち着いた速度に調整
+      particle.vx = (Math.random() - 0.5) * 1.1;
+      particle.vy = 0.4 + Math.random() * 0.4;
       particle.size = 8 + Math.random() * 6;
       break;
     case 'summer':
-      particle.vx = (Math.random() - 0.5) * 0.8;
-      particle.vy = (Math.random() - 0.5) * 0.8;
+      // 出現直後から視認できるよう画面内スポーンにあわせ、動きも少し活発に
+      particle.vx = (Math.random() - 0.5) * 1.0;
+      particle.vy = (Math.random() - 0.5) * 1.0;
       particle.size = 3 + Math.random() * 2;
       particle.opacity = 0.5;
       break;
     case 'autumn':
+      // 目立ちすぎていたため、サイズと不透明度を少し抑える
       particle.vx = (Math.random() - 0.5) * 1;
       particle.vy = 0.8 + Math.random() * 0.7;
-      particle.size = 10 + Math.random() * 8;
+      particle.size = 8 + Math.random() * 5;
+      particle.opacity = 0.25 + Math.random() * 0.25;
       break;
     case 'winter':
       particle.vx = (Math.random() - 0.5) * 0.5;
@@ -207,7 +213,15 @@ function setSeason(season) {
   currentSeason = season;
   seasonalParticles = [];
 
-  const count = season === 'summer' ? 15 : 30;
+  // 季節ごとの出現数。ホタルは少なすぎて寂しかったため増やし、
+  // 紅葉は目立ちすぎていたため減らして全体のバランスを取っている。
+  const SEASON_PARTICLE_COUNTS = {
+    spring: 28,
+    summer: 24,
+    autumn: 22,
+    winter: 30,
+  };
+  const count = SEASON_PARTICLE_COUNTS[season] ?? 28;
   for (let i = 0; i < count; i++) {
     seasonalParticles.push(createSeasonalParticle(season));
   }
