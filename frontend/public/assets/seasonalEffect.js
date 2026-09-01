@@ -104,19 +104,40 @@ function drawSeasonalParticle(particle, season) {
     }
 
     case 'autumn': {
+      // 楓(もみじ)を模した5裂の葉っぱ型。
+      // 上端が主葉先、左右に大小2つずつの葉先を持ち、間に切れ込みが入る輪郭を
+      // quadraticCurveToで連続して描き、最後に葉脈を重ねる。
       ctx.globalAlpha = particle.opacity;
       const colors = ['#D2691E', '#FF8C00', '#CD853F', '#8B4513'];
-      ctx.fillStyle = colors[Math.floor(particle.x % colors.length)];
+      const color = colors[Math.floor(particle.x % colors.length)];
+      ctx.fillStyle = color;
 
+      const s = particle.size;
       ctx.beginPath();
-      ctx.ellipse(0, 0, particle.size * 0.6, particle.size, 0, 0, Math.PI * 2);
+      ctx.moveTo(0, -s * 1.1); // 主葉先（頂点）
+      ctx.quadraticCurveTo(s * 0.15, -s * 0.55, s * 0.65, -s * 0.75); // 右上の切れ込み
+      ctx.quadraticCurveTo(s * 0.35, -s * 0.35, s * 0.95, -s * 0.15); // 右側の葉先
+      ctx.quadraticCurveTo(s * 0.5, -s * 0.05, s * 0.55, s * 0.35);   // 右側の切れ込み
+      ctx.quadraticCurveTo(s * 0.3, s * 0.25, s * 0.15, s * 0.75);    // 右下の葉先
+      ctx.quadraticCurveTo(s * 0.05, s * 0.5, 0, s * 0.9);            // 葉柄の付け根へ
+      ctx.quadraticCurveTo(-s * 0.05, s * 0.5, -s * 0.15, s * 0.75);  // 左側は右側の鏡像
+      ctx.quadraticCurveTo(-s * 0.3, s * 0.25, -s * 0.55, s * 0.35);
+      ctx.quadraticCurveTo(-s * 0.5, -s * 0.05, -s * 0.95, -s * 0.15);
+      ctx.quadraticCurveTo(-s * 0.35, -s * 0.35, -s * 0.65, -s * 0.75);
+      ctx.quadraticCurveTo(-s * 0.15, -s * 0.55, 0, -s * 1.1);
+      ctx.closePath();
       ctx.fill();
 
-      ctx.strokeStyle = 'rgba(139, 69, 19, 0.5)';
-      ctx.lineWidth = 1;
+      // 葉脈（中心の主脈＋左右の側脈）
+      ctx.strokeStyle = 'rgba(90, 45, 10, 0.55)';
+      ctx.lineWidth = Math.max(0.5, s * 0.06);
       ctx.beginPath();
-      ctx.moveTo(0, -particle.size);
-      ctx.lineTo(0, particle.size);
+      ctx.moveTo(0, s * 0.85);
+      ctx.lineTo(0, -s * 0.95);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(s * 0.55, -s * 0.45);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-s * 0.55, -s * 0.45);
       ctx.stroke();
       break;
     }
